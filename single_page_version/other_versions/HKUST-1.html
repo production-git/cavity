@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOF Structure Editor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --accent: #3B6EE6;
+            --accent-dim: rgba(59, 110, 230, .12);
+            --red: #E24B4A;
+            --green: #1D9E75;
+            --amber: #BA7517;
+            --purple: #7B5EC6;
+            --font: 'DM Sans', system-ui, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+            --r: 8px;
+            --bg2: #f9f9fa;
+            --brd: #e5e7eb;
+            --txt1: #111827;
+            --txt2: #4b5563;
+            --txt3: #9ca3af;
+            --color-background-primary: #ffffff;
+            --color-background-secondary: #f3f4f6;
+            --color-border-secondary: #d1d5db;
+            --color-border-tertiary: #e5e7eb;
+            --color-text-primary: #111827;
+            --color-text-secondary: #4b5563;
+            --color-text-tertiary: #9ca3af
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg2: #1f2937;
+                --brd: #374151;
+                --txt1: #f9fafb;
+                --txt2: #d1d5db;
+                --txt3: #9ca3af;
+                --color-background-primary: #111827;
+                --color-background-secondary: #1f2937;
+                --color-border-secondary: #4b5563;
+                --color-border-tertiary: #374151;
+                --color-text-primary: #f9fafb;
+                --color-text-secondary: #d1d5db;
+                --color-text-tertiary: #9ca3af
+            }
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--color-background-primary);
+            color: var(--txt1);
+            padding: 12px;
+        }
+
+        /* --- Layout --- */
+        .app-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 0 0 12px;
+            flex-wrap: wrap
+        }
+
+        .app-bar .title {
+            font: 600 16px/1.2 var(--font);
+            color: var(--txt1);
+            letter-spacing: -.2px
+        }
+
+        .app-bar .subtitle {
+            font: 400 11px/1.2 var(--font);
+            color: var(--txt3)
+        }
+
+        .app-bar .actions {
+            display: flex;
+            gap: 5px
+        }
+
+        .wrap {
+            position: relative
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            cursor: grab;
+            border-radius: 10px;
+            background: var(--bg2);
+            border: .5px solid var(--brd)
+        }
+
+        canvas:active {
+            cursor: grabbing
+        }
+
+        /* --- Tooltips on canvas --- */
+        #tip {
+            position: absolute;
+            pointer-events: none;
+            padding: 7px 12px;
+            border-radius: var(--r);
+            background: var(--color-background-primary);
+            border: .5px solid var(--color-border-secondary);
+            font: 400 12.5px/1.4 var(--font);
+            color: var(--txt1);
+            opacity: 0;
+            transition: opacity .1s;
+            white-space: nowrap;
+            z-index: 10;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .1)
+        }
+
+        #tip .en {
+            font-weight: 600
+        }
+
+        #tip .ed {
+            font-size: 11px;
+            color: var(--txt2);
+            margin-top: 1px
+        }
+
+        #mode-pill {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px 4px 7px;
+            border-radius: 16px;
+            font: 500 10.5px/1 var(--font);
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            z-index: 5;
+            pointer-events: none
+        }
+
+        #mode-pill.vis {
+            display: flex
+        }
+
+        #mode-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: pulse 1.8s ease infinite
+        }
+
+        .mp-edit {
+            background: rgba(226, 75, 74, .1);
+            color: #E24B4A;
+            border: .5px solid rgba(226, 75, 74, .2)
+        }
+
+        .mp-edit .dot {
+            background: #E24B4A
+        }
+
+        .mp-select {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: .5px solid rgba(59, 110, 230, .2)
+        }
+
+        .mp-select .dot {
+            background: var(--accent)
+        }
+
+        .mp-add {
+            background: rgba(29, 158, 117, .1);
+            color: var(--green);
+            border: .5px solid rgba(29, 158, 117, .2)
+        }
+
+        .mp-add .dot {
+            background: var(--green)
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .35
+            }
+        }
+
+        #axis-tip {
+            position: absolute;
+            pointer-events: none;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font: 500 10px/1 var(--mono);
+            background: var(--accent);
+            color: #fff;
+            opacity: 0;
+            transition: opacity .08s;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1)
+        }
+
+        #snap-indicator {
+            position: absolute;
+            pointer-events: none;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font: 600 10px/1 var(--mono);
+            background: var(--green);
+            color: #fff;
+            opacity: 0;
+            transition: opacity .1s;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .12)
+        }
+
+        /* --- Button styles --- */
+        .btn {
+            font: 500 11px/1 var(--font);
+            padding: 5px 11px;
+            border-radius: var(--r);
+            border: .5px solid var(--color-border-secondary);
+            background: var(--color-background-primary);
+            color: var(--txt2);
+            cursor: pointer;
+            transition: all .12s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .btn:hover {
+            background: var(--bg2);
+            color: var(--txt1)
+        }
+
+        .btn.on {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(59, 110, 230, .25)
+        }
+
+        .btn.on-red {
+            background: rgba(226, 75, 74, .07);
+            color: var(--red);
+            border-color: rgba(226, 75, 74, .2)
+        }
+
+        .btn.on-green {
+            background: rgba(29, 158, 117, .07);
+            color: var(--green);
+            border-color: rgba(29, 158, 117, .2)
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent)
+        }
+
+        .btn.primary:hover {
+            background: #2a5ad4;
+            color: #fff;
+        }
+
+        .btn.sm {
+            font-size: 10px;
+            padding: 4px 8px
+        }
+
+        .btn.danger {
+            color: var(--red);
+            border-color: rgba(226, 75, 74, .2)
+        }
+
+        .btn.danger:hover {
+            background: rgba(226, 75, 74, .05)
+        }
+
+        /* --- Tabs --- */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin: 10px 0 0;
+            border-bottom: .5px solid var(--brd)
+        }
+
+        .tab {
+            font: 500 11.5px/1 var(--font);
+            padding: 7px 14px;
+            cursor: pointer;
+            color: var(--txt3);
+            border-bottom: 2px solid transparent;
+            transition: all .15s;
+            user-select: none
+        }
+
+        .tab:hover {
+            color: var(--txt2)
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent)
+        }
+
+        .tab-panel {
+            display: none;
+            padding: 12px 0 0
+        }
+
+        .tab-panel.active {
+            display: block
+        }
+
+        /* --- Panels, stats, controls inside tabs --- */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 0 0 10px
+        }
+
+        .row:last-child {
+            margin: 0
+        }
+
+        .lbl {
+            font: 600 9.5px/1 var(--font);
+            color: var(--txt3);
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            width: 100%;
+            margin: 0 0 4px
+        }
+
+        .sr {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font: 400 12px/1 var(--font);
+            color: var(--txt2);
+            min-width: 120px;
+            flex: 1
+        }
+
+        .sr input[type=range] {
+            flex: 1;
+            min-width: 36px;
+            accent-color: var(--accent)
+        }
+
+        .sr span:last-child {
+            min-width: 26px;
+            text-align: right;
+            font: 500 10px/1 var(--mono);
+            color: var(--txt3)
+        }
+
+        .ck {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font: 400 12px/1 var(--font);
+            color: var(--txt2);
+            cursor: pointer;
+            user-select: none
+        }
+
+        .ck input {
+            accent-color: var(--accent)
+        }
+
+        .cr {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font: 400 12px/1 var(--font);
+            color: var(--txt2)
+        }
+
+        .cr input[type=color] {
+            width: 24px;
+            height: 24px;
+            border: .5px solid var(--brd);
+            border-radius: 6px;
+            padding: 2px;
+            cursor: pointer;
+            background: transparent
+        }
+
+        /* --- Stats --- */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+            gap: 8px;
+            margin: 10px 0 0
+        }
+
+        .stat {
+            background: var(--bg2);
+            border-radius: var(--r);
+            padding: 8px 12px;
+            border: .5px solid var(--brd)
+        }
+
+        .stat .sl {
+            font: 400 9.5px/1 var(--font);
+            color: var(--txt3);
+            text-transform: uppercase;
+            letter-spacing: .3px
+        }
+
+        .stat .sv {
+            font: 500 14px/1.3 var(--font);
+            color: var(--txt1);
+            margin-top: 4px
+        }
+
+        /* --- Context bars --- */
+        .ctx-bar {
+            font: 400 12px/1.3 var(--font);
+            color: var(--txt2);
+            padding: 8px 12px;
+            background: var(--bg2);
+            border-radius: var(--r);
+            margin: 8px 0 0;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            border: .5px solid var(--brd)
+        }
+
+        .ctx-bar.vis {
+            display: flex
+        }
+
+        .sel-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font: 500 10px/1.3 var(--font);
+            border: .5px solid var(--color-border-secondary);
+            background: var(--color-background-primary)
+        }
+
+        .sel-chip .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block
+        }
+
+        .sel-chip button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--txt3);
+            padding: 0 0 0 2px;
+            line-height: 1
+        }
+
+        #plegend {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 8px 0 0;
+            font: 400 11px/1.3 var(--font);
+            color: var(--txt2)
+        }
+
+        .pl-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px
+        }
+
+        .pl-group .ps {
+            width: 14px;
+            height: 10px;
+            border-radius: 2px;
+            display: inline-block;
+            border: 1.5px solid
+        }
+
+        #geom-info {
+            font: 400 11px/1.3 var(--font);
+            color: var(--txt2);
+            margin: 6px 0 0;
+            padding: 6px 12px;
+            background: var(--bg2);
+            border-radius: 6px;
+            display: none;
+            border: .5px solid var(--brd)
+        }
+
+        /* --- Element palette --- */
+        .elem-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 6px 0 0
+        }
+
+        .elem-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--r);
+            border: .5px solid var(--brd);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .12s;
+            background: var(--color-background-primary)
+        }
+
+        .elem-btn:hover {
+            border-color: var(--accent);
+            transform: scale(1.05)
+        }
+
+        .elem-btn.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+            box-shadow: 0 0 0 2px rgba(59, 110, 230, .15)
+        }
+
+        .elem-btn .sym {
+            font: 600 14px/1 var(--font)
+        }
+
+        .elem-btn .num {
+            font: 400 9px/1 var(--mono);
+            color: var(--txt3);
+            margin-top: 2px
+        }
+
+        /* --- Modal --- */
+        .modal-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px
+        }
+
+        .modal-bg.open {
+            display: flex
+        }
+
+        .mdl {
+            background: var(--color-background-primary);
+            border-radius: 12px;
+            border: .5px solid var(--color-border-secondary);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, .2);
+            max-width: 420px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
+        }
+
+        .mdl-h {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: .5px solid var(--brd)
+        }
+
+        .mdl-h h3 {
+            font: 600 14px/1 var(--font);
+            color: var(--txt1)
+        }
+
+        .mdl-h button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--txt3);
+            line-height: 1;
+            padding: 0
+        }
+
+        .mdl-b {
+            padding: 14px 18px
+        }
+
+        .mdl-b p {
+            font: 400 13px/1.5 var(--font);
+            color: var(--txt2);
+            margin: 0 0 10px
+        }
+
+        .mdl-b input[type=text] {
+            width: 100%;
+            font: 400 13px/1.4 var(--font);
+            color: var(--txt1);
+            background: var(--bg2);
+            border: .5px solid var(--brd);
+            border-radius: var(--r);
+            padding: 10px 14px
+        }
+
+        .mdl-b input[type=text]:focus {
+            outline: none;
+            border-color: var(--accent)
+        }
+
+        .mdl-f {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 12px 18px;
+            border-top: .5px solid var(--brd)
+        }
+
+        .mdl-f .status {
+            font: 400 12px/1 var(--font);
+            color: var(--green);
+            align-self: center;
+            margin-right: auto;
+            opacity: 0;
+            transition: opacity .2s
+        }
+
+        .mdl-f .status.show {
+            opacity: 1
+        }
+
+        .saved-list {
+            max-height: 180px;
+            overflow-y: auto;
+            margin: 8px 0 0
+        }
+
+        .saved-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: var(--r);
+            cursor: pointer;
+            transition: background .1s;
+            border: .5px solid transparent
+        }
+
+        .saved-item:hover {
+            background: var(--bg2);
+            border-color: var(--brd)
+        }
+
+        .saved-item .si-name {
+            font: 500 13px/1.2 var(--font);
+            color: var(--txt1);
+            flex: 1
+        }
+
+        .saved-item .si-date {
+            font: 400 11px/1 var(--font);
+            color: var(--txt3)
+        }
+
+        .saved-item .si-del {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--txt3);
+            padding: 0;
+            opacity: 0;
+            transition: opacity .1s
+        }
+
+        .saved-item:hover .si-del {
+            opacity: 1
+        }
+
+        /* THIS HIDES THE DEFAULT FILE INPUT TO MAKE IT LOOK CLEAN */
+        #file-input {
+            display: none
+        }
+
+        /* --- Custom element modal --- */
+        .custom-row {
+            display: flex;
+            gap: 10px;
+            margin: 8px 0 0
+        }
+
+        .custom-row input {
+            flex: 1;
+            font: 400 13px/1 var(--font);
+            color: var(--txt1);
+            background: var(--bg2);
+            border: .5px solid var(--brd);
+            border-radius: 6px;
+            padding: 8px 12px
+        }
+
+        .custom-row input:focus {
+            outline: none;
+            border-color: var(--accent)
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-bar">
+        <div>
+            <div class="title">MOF Structure Editor</div>
+            <div class="subtitle">HKUST-1 Cu₂(BTC)₄ paddle-wheel SBU</div>
+        </div>
+        <div class="actions">
+            <button class="btn" onclick="openExport()">↓ Export</button>
+            <button class="btn" onclick="openImport()">↑ Import</button>
+        </div>
+    </div>
+
+    <div class="wrap">
+        <canvas id="mol" height="580"></canvas>
+        <div id="tip"><span class="en"></span><br><span class="ed"></span></div>
+        <div id="mode-pill"><span class="dot"></span><span class="mode-text"></span></div>
+        <div id="axis-tip"></div>
+        <div id="snap-indicator"></div>
+    </div>
+
+    <!-- Context bars -->
+    <div class="ctx-bar" id="sel-bar"><span id="sel-label">Select atoms:</span><span id="sel-chips"></span><button
+            class="btn sm" id="sel-clear" style="margin-left:auto">Clear</button><button class="btn sm on"
+            id="sel-plane" style="display:none">Commit polyhedron</button></div>
+    <div class="ctx-bar" id="edit-bar"><span id="edit-hint"
+            style="font:400 11px/1.3 var(--font);color:var(--txt3)"></span></div>
+    <div id="geom-info"></div>
+    <div id="plegend"></div>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat">
+            <div class="sl">Atoms</div>
+            <div class="sv" id="s-natoms">—</div>
+        </div>
+        <div class="stat">
+            <div class="sl">Bonds</div>
+            <div class="sv" id="s-nbonds">—</div>
+        </div>
+        <div class="stat">
+            <div class="sl">Cu–Cu</div>
+            <div class="sv" id="s-cucu">—</div>
+        </div>
+        <div class="stat">
+            <div class="sl">Cu–O avg</div>
+            <div class="sv" id="s-cuo">—</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" data-tab="tools">Tools</div>
+        <div class="tab" data-tab="view">View</div>
+        <div class="tab" data-tab="atoms">Elements</div>
+        <div class="tab" data-tab="presets">Presets</div>
+    </div>
+
+    <!-- Tools tab -->
+    <div class="tab-panel active" id="tp-tools">
+        <div class="row">
+            <div class="lbl">Mode</div>
+        </div>
+        <div class="row">
+            <button class="btn" id="btn-edit" onclick="toggleEditMode()">✎ Move atoms</button>
+            <button class="btn" id="btn-select" onclick="toggleSelectMode()">⬡ Polyhedron</button>
+            <button class="btn" id="btn-add" onclick="toggleAddMode()">+ Add atom</button>
+        </div>
+        <div class="row">
+            <div class="lbl">Bonds</div>
+        </div>
+        <div class="row">
+            <button class="btn" id="btn-connect" onclick="connectSelected()">Link selected</button>
+            <button class="btn" id="btn-disconnect" onclick="disconnectSelected()">Unlink selected</button>
+            <button class="btn danger" id="btn-delatom" onclick="deleteSelected()">Delete selected</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <button class="btn" onclick="resetStructure()">↻ Reset default</button>
+        </div>
+    </div>
+
+    <!-- View tab -->
+    <div class="tab-panel" id="tp-view">
+        <div class="row">
+            <div class="lbl">Camera</div>
+        </div>
+        <div class="row">
+            <div class="sr"><span>Zoom</span><input type="range" id="zoom" min="30" max="160" value="72" step="1"><span
+                    id="zv">72</span></div>
+            <div class="sr"><span>Atom size</span><input type="range" id="asize" min="50" max="200" value="100"
+                    step="1"><span id="asv">100%</span></div>
+            <div class="sr"><span>Face α</span><input type="range" id="faceOpac" min="5" max="60" value="18"
+                    step="1"><span id="fov">18%</span></div>
+        </div>
+        <div class="row">
+            <label class="ck"><input type="checkbox" id="autoRot" checked> Auto-rotate</label>
+            <label class="ck"><input type="checkbox" id="showBonds" checked> Bonds</label>
+            <label class="ck"><input type="checkbox" id="showLabels"> Labels</label>
+            <label class="ck"><input type="checkbox" id="snapEnabled" checked> Snap guides</label>
+        </div>
+        <div class="row">
+            <div class="lbl">Colours</div>
+        </div>
+        <div class="row" id="color-row"></div>
+    </div>
+
+    <!-- Elements tab -->
+    <div class="tab-panel" id="tp-atoms">
+        <div class="row">
+            <div class="lbl">Element palette — click to select, then click canvas to place</div>
+        </div>
+        <div class="elem-palette" id="elem-palette"></div>
+        <div class="row" style="margin-top:10px">
+            <button class="btn sm" onclick="openCustomElem()">+ Custom element</button>
+        </div>
+    </div>
+
+    <!-- Presets tab -->
+    <div class="tab-panel" id="tp-presets">
+        <div class="row">
+            <div class="lbl">Highlight planes</div>
+        </div>
+        <div class="row">
+            <button class="btn" id="v-none" onclick="setPlane('none')">None</button>
+            <button class="btn" id="v-cu-o" onclick="setPlane('cu-o')">Cu–O equatorial</button>
+            <button class="btn" id="v-carb" onclick="setPlane('carb')">Carboxylate</button>
+            <button class="btn" id="v-ring" onclick="setPlane('ring')">Rings</button>
+        </div>
+        <div class="row">
+            <div class="lbl">Camera presets</div>
+        </div>
+        <div class="row">
+            <button class="btn" onclick="setView(0,-90)">Top</button>
+            <button class="btn" onclick="setView(0,0)">Side</button>
+            <button class="btn" onclick="setView(35,20)">¾ view</button>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-bg" id="modal-export">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Export structure</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Give your structure a name and download it as a .json file.</p>
+                <input type="text" id="export-name" placeholder="My HKUST-1 model" spellcheck="false">
+            </div>
+            <div class="mdl-f">
+                <button class="btn" onclick="closeModals()">Cancel</button>
+                <button class="btn primary" onclick="doExport()">Download .json</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal (FIXED) -->
+    <div class="modal-bg" id="modal-import">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Import structure</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Select a previously exported .json file to load.</p>
+                <!-- Added a visible button to trigger the hidden file input -->
+                <button class="btn primary" onclick="document.getElementById('file-input').click()">Browse local
+                    file...</button>
+                <input type="file" id="file-input" accept=".json">
+
+                <div id="import-saved-section" style="margin-top:16px">
+                    <div class="lbl">Saved in browser</div>
+                    <div class="saved-list" id="saved-list"></div>
+                </div>
+            </div>
+            <div class="mdl-f">
+                <span class="status" id="import-status"></span>
+                <button class="btn" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom element modal -->
+    <div class="modal-bg" id="modal-elem">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Add custom element</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Enter element details to add to your palette.</p>
+                <div class="custom-row"><input type="text" id="ce-sym" placeholder="Symbol (e.g. Zn)"
+                        maxlength="3"><input type="text" id="ce-name" placeholder="Name (e.g. Zinc)"></div>
+                <div class="custom-row"><input type="color" id="ce-col" value="#5B8C5A"
+                        style="width:40px;height:32px;border-radius:6px"><input type="number" id="ce-rad"
+                        placeholder="Radius (px, e.g. 8)" min="3" max="20" step="0.5" value="7"></div>
+            </div>
+            <div class="mdl-f">
+                <button class="btn" onclick="closeModals()">Cancel</button>
+                <button class="btn primary" onclick="addCustomElem()">Add element</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ========== CORE ========== */
+        const canvas = document.getElementById('mol'), ctx = canvas.getContext('2d'), tip = document.getElementById('tip');
+        const dpr = window.devicePixelRatio || 1, dark = matchMedia('(prefers-color-scheme:dark)').matches;
+        function resize() { const w = canvas.clientWidth; canvas.width = w * dpr; canvas.height = 580 * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0) }
+        resize(); window.addEventListener('resize', () => { resize(); draw() });
+
+        /* ========== ELEMENT CATALOG ========== */
+        const ELEMENTS = [
+            { sym: 'Cu', name: 'Copper', col: '#3B4D9E', rad: 10, roles: { Cu: ['Copper (Cu²⁺)', 'Square pyramidal coordination'] } },
+            { sym: 'O', name: 'Oxygen', col: '#A8B4D4', rad: 6.5, roles: { O_bridge: ['Oxygen (bridging)', 'Carboxylate O, syn-syn μ₂ bridge'], O_term: ['Oxygen (terminal)', 'Carboxylate O → adjacent SBU'] } },
+            { sym: 'C', name: 'Carbon', col: dark ? '#8a8a8a' : '#555555', rad: 5.2, roles: { C_carb: ['Carbon (carboxylate)', 'sp² C(=O)₂'], C_arom: ['Carbon (aromatic)', 'BTC ring, sp²'] } },
+            { sym: 'H', name: 'Hydrogen', col: dark ? '#cccccc' : '#999999', rad: 3.5, roles: { H: ['Hydrogen', 'H atom'] } },
+        ];
+
+        function getElem(sym) { return ELEMENTS.find(e => e.sym === sym) }
+        function getCOL(sym) { const e = getElem(sym); return e ? e.col : (dark ? '#aaa' : '#777') }
+        function getRAD(sym) { const e = getElem(sym); return e ? e.rad : 5 }
+        function getNAME(role) { for (const e of ELEMENTS) { if (e.roles[role]) return e.roles[role] } return null }
+
+        let COL = {}; ELEMENTS.forEach(e => COL[e.sym] = e.col);
+
+        /* ========== ATOMS & BONDS ========== */
+        let atoms = [], bonds = [], aid = 0;
+        function A(x, y, z, t, role, plane) { atoms.push({ x, y, z, t, role: role || t, plane: plane || '', id: aid++ }); return aid - 1 }
+        function B(a, b, d) { bonds.push({ a, b, dashed: !!d }) }
+
+        function buildDefault() {
+            atoms = []; bonds = []; aid = 0;
+            const CuCu = 1.31;
+            const cu1 = A(0, 0, CuCu, 'Cu', 'Cu', 'cu-o'), cu2 = A(0, 0, -CuCu, 'Cu', 'Cu', 'cu-o'); B(cu1, cu2, true);
+            [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => {
+                const R = .98, sep = .52;
+                const o1 = A(dx * R, dy * R, sep, 'O', 'O_bridge', 'cu-o'), o2 = A(dx * R, dy * R, -sep, 'O', 'O_bridge', 'cu-o');
+                B(cu1, o1); B(cu2, o2);
+                const cc = A(dx * 1.55, dy * 1.55, 0, 'C', 'C_carb', 'carb'); B(o1, cc); B(o2, cc);
+                const ringR = 2.65, rcx = dx * ringR, rcy = dy * ringR, tx = -dy, ty = dx, rr = .7, rIds = [];
+                for (let j = 0; j < 6; j++) { const a = j * Math.PI / 3 + Math.PI / 6; rIds.push(A(rcx + rr * Math.cos(a) * tx, rcy + rr * Math.cos(a) * ty, rr * Math.sin(a), 'C', 'C_arom', 'ring')) }
+                for (let j = 0; j < 6; j++)B(rIds[j], rIds[(j + 1) % 6]); B(cc, rIds[0]);
+                [2, 4].forEach(pos => {
+                    const ca = atoms[rIds[pos]], ox = ca.x - rcx, oy = ca.y - rcy, oz = ca.z; const n = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1, nx = ox / n, ny = oy / n, nz = oz / n, ext = 1.25;
+                    const ec = A(ca.x + nx * ext, ca.y + ny * ext, ca.z + nz * ext, 'C', 'C_carb', 'carb'); B(rIds[pos], ec);
+                    const cx2 = ny, cy2 = -nx, cz2 = 0, cn = Math.sqrt(cx2 * cx2 + cy2 * cy2 + cz2 * cz2) || 1, s = .58;
+                    const eo1 = A(ca.x + nx * (ext + .6) + cx2 / cn * s, ca.y + ny * (ext + .6) + cy2 / cn * s, ca.z + nz * (ext + .6) + cz2 / cn * s, 'O', 'O_term', '');
+                    const eo2 = A(ca.x + nx * (ext + .6) - cx2 / cn * s, ca.y + ny * (ext + .6) - cy2 / cn * s, ca.z + nz * (ext + .6) - cz2 / cn * s, 'O', 'O_term', '');
+                    B(ec, eo1); B(ec, eo2)
+                })
+            });
+        }
+        buildDefault();
+
+        /* ========== STATE ========== */
+        let angleY = 35 * Math.PI / 180, angleX = 20 * Math.PI / 180, zoomVal = 72, atomScale = 1, autoRotate = true, showBonds = true, showLabels = false, faceAlpha = .18, snapEnabled = true;
+        let activePlane = 'none', dragging = false, lastMX, lastMY, hoveredAtom = null;
+        let selectMode = false, selectedAtoms = [];
+        let editMode = false, editSelected = [], editDragging = false, editAxis = null, editDragStart = null;
+        let addMode = false, addElement = 'Cu';
+        let customGroups = [];
+        const PCOLORS = ['#D85A30', '#1D9E75', '#D4537E', '#BA7517', '#534AB7', '#E24B4A', '#378ADD'];
+        const PRESET_COL = { 'cu-o': '#3B4D9E', 'carb': '#BA7517', 'ring': '#1D9E75' };
+        let pcIdx = 0;
+        let currentAxes = [], hoveredAxisIdx = -1;
+        const AXIS_COLORS = ['#E24B4A', '#1D9E75', '#3B6EE6', '#BA7517', '#7B5EC6', '#D4537E'];
+
+        /* ========== 3D MATH ========== */
+        function project(x, y, z) {
+            let x1 = x * Math.cos(angleY) - z * Math.sin(angleY), z1 = x * Math.sin(angleY) + z * Math.cos(angleY), y1 = y;
+            let y2 = y1 * Math.cos(angleX) - z1 * Math.sin(angleX), z2 = y1 * Math.sin(angleX) + z1 * Math.cos(angleX);
+            const per = 14, ps = per / (per + z2), s = zoomVal * 1.15;
+            return { sx: canvas.clientWidth / 2 + x1 * s * ps, sy: 290 - y2 * s * ps, sz: z2, ps }
+        }
+        function hexRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)] }
+        function v3sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
+        function v3add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]] }
+        function v3scale(a, s) { return [a[0] * s, a[1] * s, a[2] * s] }
+        function v3cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]] }
+        function v3dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] }
+        function v3len(a) { return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) }
+        function v3norm(a) { const l = v3len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l] }
+        function v3dist(a, b) { return v3len(v3sub(a, b)) }
+
+        /* ========== GEOMETRY ========== */
+        function areCoplanar(ids) { if (ids.length <= 3) return true; const pts = ids.map(id => [atoms[id].x, atoms[id].y, atoms[id].z]); const cr = v3cross(v3sub(pts[1], pts[0]), v3sub(pts[2], pts[0])); if (v3len(cr) < 1e-9) return true; const n = v3norm(cr); for (let i = 3; i < pts.length; i++) { if (Math.abs(v3dot(n, v3sub(pts[i], pts[0]))) > .08) return false } return true }
+
+        function triangulatePlanar(ids) {
+            if (ids.length <= 3) return [ids.slice()];
+            const pts = ids.map(id => [atoms[id].x, atoms[id].y, atoms[id].z]);
+            const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2] }
+            c[0] /= pts.length; c[1] /= pts.length; c[2] /= pts.length;
+            let bU = null, bV = null, nm = null;
+            for (let i = 0; i < pts.length && !bV; i++)for (let j = i + 1; j < pts.length && !bV; j++) { const d = v3sub(pts[j], pts[i]); if (!bU && v3len(d) > 1e-9) { bU = v3norm(d); continue } if (bU) { const cr = v3cross(bU, v3sub(pts[j], pts[i])); if (v3len(cr) > 1e-9) { nm = v3norm(cr); bV = v3norm(v3cross(nm, bU)); break } } }
+            if (!bV) return [orderFace3D(ids)];
+            const co = pts.map(p => { const d = v3sub(p, c); return [v3dot(d, bU), v3dot(d, bV)] });
+            function hull2D(n, xy) { if (n <= 2) return Array.from({ length: n }, (_, i) => i); let s = 0; for (let i = 1; i < n; i++) { const [sx, sy] = xy(i), [bx, by] = xy(s); if (sx < bx || (sx === bx && sy < by)) s = i } const h = []; let cur = s; do { h.push(cur); let nx = 0; for (let i = 0; i < n; i++) { if (i === cur) continue; if (nx === cur) { nx = i; continue } const [cx, cy] = xy(cur), [nxx, ny] = xy(nx), [ix, iy] = xy(i); const cr = (nxx - cx) * (iy - cy) - (ny - cy) * (ix - cx); if (cr < -1e-10) nx = i; else if (Math.abs(cr) < 1e-10) { if ((nxx - cx) ** 2 + (ny - cy) ** 2 < (ix - cx) ** 2 + (iy - cy) ** 2) nx = i } } cur = nx; if (h.length > n + 1) break } while (cur !== s); return h }
+            const hl = hull2D(ids.length, i => co[i]), hs = new Set(hl), ii = [];
+            for (let i = 0; i < ids.length; i++) { if (!hs.has(i)) ii.push(i) }
+            if (ii.length === 0) return [hl.map(i => ids[i])];
+            const faces = [];
+            if (ii.length === 1) { const ip = ii[0]; for (let i = 0; i < hl.length; i++) { const j = (i + 1) % hl.length; faces.push([ids[ip], ids[hl[i]], ids[hl[j]]]) } return faces }
+            const ip = ii[0], ipx = co[ip][0], ipy = co[ip][1], ot = [];
+            for (let i = 0; i < ids.length; i++) { if (i !== ip) ot.push(i) }
+            ot.sort((a, b) => Math.atan2(co[a][1] - ipy, co[a][0] - ipx) - Math.atan2(co[b][1] - ipy, co[b][0] - ipx));
+            for (let i = 0; i < ot.length; i++) { const j = (i + 1) % ot.length; faces.push([ids[ip], ids[ot[i]], ids[ot[j]]]) }
+            return faces
+        }
+
+        function orderFace3D(ids) { if (ids.length <= 2) return ids; const pts = ids.map(id => [atoms[id].x, atoms[id].y, atoms[id].z]); const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2] } c[0] /= pts.length; c[1] /= pts.length; c[2] /= pts.length; const v1 = v3norm(v3sub(pts[0], c)); const raw = v3sub(pts[1], c); const n = v3norm(v3cross(v1, raw)); const v2 = v3cross(n, v1); const angles = ids.map((id, i) => { const d = v3sub(pts[i], c); return { id, ang: Math.atan2(v3dot(d, v2), v3dot(d, v1)) } }); angles.sort((a, b) => a.ang - b.ang); return angles.map(a => a.id) }
+
+        function convexHull3DFaces(ids) { const pts = ids.map(id => [atoms[id].x, atoms[id].y, atoms[id].z]); const n = pts.length; if (n < 4) return [ids.slice()]; const faces = []; const ct = [0, 0, 0]; for (const p of pts) { ct[0] += p[0]; ct[1] += p[1]; ct[2] += p[2] } ct[0] /= n; ct[1] /= n; ct[2] /= n; for (let i = 0; i < n; i++)for (let j = i + 1; j < n; j++)for (let k = j + 1; k < n; k++) { const v1 = v3sub(pts[j], pts[i]), v2 = v3sub(pts[k], pts[i]); const nm = v3cross(v1, v2); if (v3len(nm) < 1e-9) continue; const nn = v3norm(nm); const d = v3dot(nn, pts[i]); let ab = 0, bl = 0; const on = []; for (let m = 0; m < n; m++) { const val = v3dot(nn, pts[m]) - d; if (Math.abs(val) < .05) on.push(m); else if (val > 0) ab++; else bl++ } if (ab === 0 || bl === 0) { const fi = on.map(m => ids[m]); let dom = false; for (let f = faces.length - 1; f >= 0; f--) { const ex = new Set(faces[f]), nw = new Set(fi); if (fi.every(id => ex.has(id))) { dom = true; break } if (faces[f].every(id => nw.has(id))) faces.splice(f, 1) } if (!dom) { const fc = [0, 0, 0]; for (const id of fi) { fc[0] += atoms[id].x; fc[1] += atoms[id].y; fc[2] += atoms[id].z } fc[0] /= fi.length; fc[1] /= fi.length; fc[2] /= fi.length; const u = v3norm(v3sub([atoms[fi[0]].x, atoms[fi[0]].y, atoms[fi[0]].z], fc)); const w = v3norm(v3cross(nn, u)); fi.sort((a, b) => { const da = v3sub([atoms[a].x, atoms[a].y, atoms[a].z], fc); const db = v3sub([atoms[b].x, atoms[b].y, atoms[b].z], fc); return Math.atan2(v3dot(da, w), v3dot(da, u)) - Math.atan2(v3dot(db, w), v3dot(db, u)) }); faces.push(fi) } } } return faces.length ? faces : [ids.slice()] }
+
+        function decomposeFaces(ids) { if (ids.length < 3) return []; if (ids.length === 3) return [ids.slice()]; if (areCoplanar(ids)) return triangulatePlanar(ids); return convexHull3DFaces(ids) }
+        function collectEdges(faces) { const es = new Set(), ed = []; faces.forEach(f => { for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length]; const k = Math.min(a, b) + '-' + Math.max(a, b); if (!es.has(k)) { es.add(k); ed.push([a, b]) } } }); return ed }
+        function getAllDrawGroups() { const g = []; if (activePlane !== 'none') { const ids = []; atoms.forEach(a => { if (a.plane === activePlane) ids.push(a.id) }); if (ids.length >= 3) { const f = decomposeFaces(ids); g.push({ faces: f, edges: collectEdges(f), ids, color: PRESET_COL[activePlane] }) } } customGroups.forEach(cg => { const f = decomposeFaces(cg.ids); g.push({ faces: f, edges: collectEdges(f), ids: cg.ids, color: cg.color }) }); return g }
+        function describeGeom(ids) { if (ids.length < 3) return ''; if (areCoplanar(ids)) { const f = triangulatePlanar(ids); if (f.length === 1 && f[0].length === ids.length) { if (ids.length === 3) return 'Triangle'; if (ids.length === 4) return 'Quadrilateral'; return ids.length + '-gon' } return f.length + ' triangular faces, ' + ids.length + ' vtx' } const f = convexHull3DFaces(ids); const v = ids.length, fc = f.length; if (v === 4 && fc === 4) return 'Tetrahedron'; if (v === 5 && fc === 5) return 'Sq. pyramid'; if (v === 6 && fc === 8) return 'Octahedron'; if (v === 8 && fc === 6) return 'Cube'; return fc + '-face polyhedron' }
+
+        /* ========== EDIT AXES & SNAP ========== */
+        function getNeighbors(id) { const n = []; bonds.forEach(b => { if (b.a === id) n.push(b.b); if (b.b === id) n.push(b.a) }); return n }
+        function computeEditAxes(id) {
+            const a = atoms[id], pos = [a.x, a.y, a.z], nbrs = getNeighbors(id), axes = [];
+            nbrs.forEach(nid => { const n = atoms[nid], dir = v3norm(v3sub([n.x, n.y, n.z], pos)); if (!axes.some(ax => Math.abs(v3dot(ax.dir, dir)) > .95)) axes.push({ dir, label: '→ ' + n.t + '#' + nid, neighborId: nid }) });
+            if (nbrs.length >= 2) { const n1 = atoms[nbrs[0]], n2 = atoms[nbrs[1]], d1 = v3sub([n1.x, n1.y, n1.z], pos), d2 = v3sub([n2.x, n2.y, n2.z], pos), perp = v3norm(v3cross(d1, d2)); if (v3len(v3cross(d1, d2)) > 1e-6) axes.push({ dir: perp, label: '⊥ normal', neighborId: -1 }) }
+            return axes
+        }
+
+        /* Snap: compute sticky positions for a moving atom along an axis */
+        let lastSnap = null;
+        function computeSnapTargets(movingIds) {
+            const targets = [];
+            const others = atoms.filter(a => !movingIds.includes(a.id));
+            if (others.length < 2) return targets;
+            // Collect planes defined by groups of bonded neighbors
+            const refId = movingIds[0], nbrs = getNeighbors(refId);
+            // Snap to same z/y/x as neighbor groups (coplanar)
+            nbrs.forEach(nid => {
+                const n = atoms[nid];
+                const nnbrs = getNeighbors(nid).filter(id => id !== refId);
+                nnbrs.forEach(nnid => {
+                    const nn = atoms[nnid];
+                    // Plane defined by nid and nnid: snap if moving atom reaches their plane
+                    targets.push({ type: 'coplanar', pos: [n.x, n.y, n.z], pos2: [nn.x, nn.y, nn.z], label: n.t + '#' + nid + ' plane' });
+                });
+            });
+            // Snap to z=0, y=0, x=0 planes
+            targets.push({ type: 'origin', axis: 'x', val: 0, label: 'x=0' });
+            targets.push({ type: 'origin', axis: 'y', val: 0, label: 'y=0' });
+            targets.push({ type: 'origin', axis: 'z', val: 0, label: 'z=0' });
+            // Snap to same coordinate as any neighbor
+            nbrs.forEach(nid => {
+                const n = atoms[nid];
+                ['x', 'y', 'z'].forEach(ax => {
+                    targets.push({ type: 'coord', axis: ax, val: n[ax], label: n.t + '#' + nid + ' ' + ax + '=' + n[ax].toFixed(2) });
+                });
+            });
+            return targets;
+        }
+
+        function trySnap(movingId, pos, axis) {
+            if (!snapEnabled) return { pos, snapped: false };
+            const THRESH = 0.04; // snap threshold in model units
+            const nbrs = getNeighbors(movingId);
+            let bestDist = THRESH, snapVal = null, snapAxis = null, snapLabel = '';
+
+            // Check if any coordinate of pos matches a neighbor's coordinate
+            ['x', 'y', 'z'].forEach((ax, i) => {
+                // Origin planes
+                if (Math.abs(pos[i]) < THRESH && Math.abs(pos[i]) < bestDist) {
+                    bestDist = Math.abs(pos[i]); snapVal = 0; snapAxis = i; snapLabel = ax + '=0 plane';
+                }
+                // Neighbor coordinates
+                nbrs.forEach(nid => {
+                    const n = atoms[nid];
+                    const npos = [n.x, n.y, n.z];
+                    const d = Math.abs(pos[i] - npos[i]);
+                    if (d < THRESH && d < bestDist) {
+                        bestDist = d; snapVal = npos[i]; snapAxis = i; snapLabel = 'coplanar with ' + n.t + '#' + nid;
+                    }
+                });
+                // Also check 2nd-degree neighbors for coplanar snap
+                nbrs.forEach(nid => {
+                    getNeighbors(nid).filter(id => id !== movingId).forEach(nnid => {
+                        const nn = atoms[nnid];
+                        const nnpos = [nn.x, nn.y, nn.z];
+                        const d = Math.abs(pos[i] - nnpos[i]);
+                        if (d < THRESH && d < bestDist) {
+                            bestDist = d; snapVal = nnpos[i]; snapAxis = i; snapLabel = 'aligned with ' + nn.t + '#' + nnid;
+                        }
+                    });
+                });
+            });
+
+            if (snapAxis != null) {
+                const snapped = [...pos];
+                snapped[snapAxis] = snapVal;
+                return { pos: snapped, snapped: true, label: snapLabel };
+            }
+            return { pos, snapped: false };
+        }
+
+        /* ========== DRAW ========== */
+        function draw() {
+            const w = canvas.clientWidth, h = 580; ctx.clearRect(0, 0, w, h);
+            const proj = atoms.map(a => { const p = project(a.x, a.y, a.z); return { ...a, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps } });
+            const groups = getAllDrawGroups();
+            const anyGroup = groups.length > 0;
+            const groupAtomSet = new Set(); groups.forEach(g => g.ids.forEach(id => groupAtomSet.add(id)));
+            selectedAtoms.forEach(id => groupAtomSet.add(id));
+            if (editMode) editSelected.forEach(id => groupAtomSet.add(id));
+
+            const drawList = [];
+            groups.forEach(gr => { gr.faces.forEach(f => { const mz = f.reduce((s, id) => s + proj[id].sz, 0) / f.length; drawList.push({ type: 'face', z: mz - .02, fIds: f, color: gr.color }) }); gr.edges.forEach(e => { const mz = (proj[e[0]].sz + proj[e[1]].sz) / 2; drawList.push({ type: 'edge', z: mz - .01, a: e[0], b: e[1], color: gr.color }) }); gr.ids.forEach(id => { drawList.push({ type: 'vtx', z: proj[id].sz - .005, id, color: gr.color }) }) });
+            if (showBonds) bonds.forEach(b => { const a1 = proj[b.a], a2 = proj[b.b]; drawList.push({ type: 'bond', z: (a1.sz + a2.sz) / 2, a1, a2, dashed: b.dashed, isCu: atoms[b.a].t === 'Cu' || atoms[b.b].t === 'Cu', ai: b.a, bi: b.b }) });
+            proj.forEach((a, i) => drawList.push({ type: 'atom', z: a.sz, a, i }));
+            if (selectMode && selectedAtoms.length >= 3) { const pf = decomposeFaces(selectedAtoms); const pe = collectEdges(pf); pf.forEach(f => { const mz = f.reduce((s, id) => s + proj[id].sz, 0) / f.length; drawList.push({ type: 'prevface', z: mz - .02, fIds: f }) }); pe.forEach(e => { const mz = (proj[e[0]].sz + proj[e[1]].sz) / 2; drawList.push({ type: 'prevedge', z: mz - .01, a: e[0], b: e[1] }) }) }
+            drawList.sort((a, b) => a.z - b.z);
+
+            drawList.forEach(d => {
+                if (d.type === 'face') { const pts = d.fIds.map(id => ({ sx: proj[id].sx, sy: proj[id].sy })); if (pts.length < 3) return; const [r, g, b] = hexRgb(d.color); ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy) }); ctx.closePath(); ctx.fillStyle = `rgba(${r},${g},${b},${faceAlpha})`; ctx.fill(); ctx.restore() }
+                if (d.type === 'edge') { const p1 = proj[d.a], p2 = proj[d.b]; const [r, g, bc] = hexRgb(d.color); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = `rgba(${r},${g},${bc},${dark ? .7 : .55})`; ctx.lineWidth = 2; ctx.stroke() }
+                if (d.type === 'vtx') { const p = proj[d.id]; const [r, g, b] = hexRgb(d.color); ctx.beginPath(); ctx.arc(p.sx, p.sy, 3.5, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${dark ? .8 : .65})`; ctx.fill() }
+                if (d.type === 'prevface') { const pts = d.fIds.map(id => ({ sx: proj[id].sx, sy: proj[id].sy })); ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy) }); ctx.closePath(); ctx.fillStyle = 'rgba(226,75,74,.06)'; ctx.fill(); ctx.restore() }
+                if (d.type === 'prevedge') { const p1 = proj[d.a], p2 = proj[d.b]; ctx.save(); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = 'rgba(226,75,74,.3)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.restore() }
+                if (d.type === 'bond') { const { a1, a2, dashed, isCu, ai, bi } = d; ctx.beginPath(); if (dashed) ctx.setLineDash([3, 4]); else ctx.setLineDash([]); ctx.moveTo(a1.sx, a1.sy); ctx.lineTo(a2.sx, a2.sy); const dim = anyGroup && !groupAtomSet.has(ai) && !groupAtomSet.has(bi); const bc = getCOL(isCu ? 'Cu' : 'C'); ctx.strokeStyle = bc + (dim ? '22' : '77'); ctx.lineWidth = (isCu ? 2.5 : 1.8) * ((a1.ps + a2.ps) / 2); ctx.stroke(); ctx.setLineDash([]) }
+                if (d.type === 'atom') {
+                    const { a } = d, col = getCOL(a.t), baseR = getRAD(a.t) * atomScale, r = baseR * a.ps * (zoomVal / 65); const dm = .7 + .3 * ((a.sz + 5) / 10), [cr, cg, cb] = hexRgb(col); const inF = groupAtomSet.has(a.id), faded = anyGroup && !inF; const isES = editMode && editSelected.includes(a.id); ctx.save(); if (faded && !isES) ctx.globalAlpha = .15; const grad = ctx.createRadialGradient(a.sx - r * .3, a.sy - r * .3, r * .05, a.sx, a.sy, r); grad.addColorStop(0, `rgb(${Math.min(255, cr + Math.round((255 - cr) * .5))},${Math.min(255, cg + Math.round((255 - cg) * .5))},${Math.min(255, cb + Math.round((255 - cb) * .5))})`); grad.addColorStop(.5, `rgb(${Math.round(cr * dm)},${Math.round(cg * dm)},${Math.round(cb * dm)})`); grad.addColorStop(1, `rgb(${Math.round(cr * .5 * dm)},${Math.round(cg * .5 * dm)},${Math.round(cb * .5 * dm)})`); ctx.beginPath(); ctx.arc(a.sx, a.sy, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+                    if (selectedAtoms.includes(a.id) || isES) { ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 2.5; ctx.stroke() }
+                    else if (a.id === hoveredAtom) { ctx.strokeStyle = dark ? 'rgba(255,255,255,.7)' : 'rgba(0,0,0,.5)'; ctx.lineWidth = 2; ctx.stroke() }
+                    else if (inF && anyGroup) { ctx.strokeStyle = dark ? 'rgba(255,255,255,.3)' : 'rgba(0,0,0,.18)'; ctx.lineWidth = 1.5; ctx.stroke() }
+                    ctx.restore();
+                    if (showLabels) { ctx.save(); ctx.font = '500 9px "DM Sans",sans-serif'; ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(a.t, a.sx, a.sy - r - 2); ctx.restore() }
+                }
+            });
+
+            // Axis gizmos
+            if (editMode && editSelected.length > 0 && !editDragging) {
+                const refId = editSelected[0], a = atoms[refId], ap = project(a.x, a.y, a.z);
+                currentAxes = computeEditAxes(refId);
+                currentAxes.forEach((ax, i) => {
+                    const col = AXIS_COLORS[i % AXIS_COLORS.length], isH = hoveredAxisIdx === i, lw = isH ? 3.5 : 2, al = isH ? 1 : .6, [rr, gg, bb] = hexRgb(col);
+                    let sdx, sdy;
+                    if (ax.neighborId >= 0) { const nb = atoms[ax.neighborId], np = project(nb.x, nb.y, nb.z); sdx = np.sx - ap.sx; sdy = np.sy - ap.sy }
+                    else { const ep = project(a.x + ax.dir[0], a.y + ax.dir[1], a.z + ax.dir[2]); sdx = ep.sx - ap.sx; sdy = ep.sy - ap.sy }
+                    const sl = Math.sqrt(sdx * sdx + sdy * sdy) || 1, ux = sdx / sl, uy = sdy / sl, ext = isH ? 75 : 65;
+                    const epx = ap.sx + ux * ext, epy = ap.sy + uy * ext, nepx = ap.sx - ux * ext, nepy = ap.sy - uy * ext;
+                    ctx.save(); ctx.beginPath(); ctx.moveTo(nepx, nepy); ctx.lineTo(epx, epy); ctx.strokeStyle = `rgba(${rr},${gg},${bb},${al})`; ctx.lineWidth = lw; ctx.stroke();
+                    const as = isH ? 8 : 6; ctx.beginPath(); ctx.moveTo(epx, epy); ctx.lineTo(epx - ux * as + uy * as * .5, epy - uy * as - ux * as * .5); ctx.moveTo(epx, epy); ctx.lineTo(epx - ux * as - uy * as * .5, epy - uy * as + ux * as * .5); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(nepx, nepy, isH ? 4 : 3, 0, Math.PI * 2); ctx.fillStyle = `rgba(${rr},${gg},${bb},${al})`; ctx.fill(); ctx.restore();
+                    ax._sx0 = nepx; ax._sy0 = nepy; ax._sx1 = epx; ax._sy1 = epy;
+                });
+            }
+
+            // Header
+            ctx.font = '600 12px "DM Sans",sans-serif'; ctx.fillStyle = dark ? '#bbb' : '#555'; ctx.textAlign = 'center';
+            ctx.fillText('HKUST-1 paddle-wheel SBU', w / 2, 20);
+            ctx.font = '400 10px "DM Sans",sans-serif'; ctx.fillStyle = dark ? '#777' : '#aaa';
+            const mt = editMode ? 'Edit: click atom, drag axes' : (selectMode ? 'Select: click atoms' : (addMode ? 'Add: click canvas to place ' + addElement : 'Drag to rotate · scroll to zoom'));
+            ctx.fillText(mt, w / 2, 34);
+        }
+
+        /* ========== HIT TEST ========== */
+        function hitTest(mx, my) { const proj = atoms.map(a => { const p = project(a.x, a.y, a.z); return { ...a, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps } }); const sorted = [...proj].sort((a, b) => b.sz - a.sz); for (const a of sorted) { const r = getRAD(a.t) * atomScale * a.ps * (zoomVal / 65); if ((mx - a.sx) ** 2 + (my - a.sy) ** 2 <= r * r) return a } return null }
+        function hitAxisTest(mx, my) { if (!editMode || editSelected.length === 0 || currentAxes.length === 0) return -1; for (let i = 0; i < currentAxes.length; i++) { const ax = currentAxes[i]; if (ax._sx0 == null) continue; const dx = ax._sx1 - ax._sx0, dy = ax._sy1 - ax._sy0, l2 = dx * dx + dy * dy; if (l2 < 1) continue; let t = ((mx - ax._sx0) * dx + (my - ax._sy0) * dy) / l2; t = Math.max(0, Math.min(1, t)); const cx = ax._sx0 + t * dx, cy = ax._sy0 + t * dy; if (Math.sqrt((mx - cx) ** 2 + (my - cy) ** 2) < 10) return i } return -1 }
+
+        /* ========== UNPROJECT (for add mode) ========== */
+        function unproject(sx, sy) {
+            // Place new atom at z=0 plane, invert the projection
+            const z = 0, s = zoomVal * 1.15, per = 14;
+            // Approximate: assume z2≈0 for simplicity
+            const ps = per / (per + 0);
+            const x1 = (sx - canvas.clientWidth / 2) / (s * ps);
+            const y2 = -(sy - 290) / (s * ps);
+            // Invert rotation
+            const z1 = y2 * Math.sin(-angleX) + 0 * Math.cos(-angleX);
+            const y1 = y2 * Math.cos(-angleX) - 0 * Math.sin(-angleX);
+            const x = x1 * Math.cos(-angleY) - z1 * Math.sin(-angleY);
+            const zz = x1 * Math.sin(-angleY) + z1 * Math.cos(-angleY);
+            return { x, y: y1, z: zz };
+        }
+
+        /* ========== UI UPDATES ========== */
+        function updateModePill() { const p = document.getElementById('mode-pill'), t = p.querySelector('.mode-text'); p.className = ''; p.id = 'mode-pill'; if (editMode) { p.classList.add('vis', 'mp-edit'); t.textContent = 'EDIT' } else if (selectMode) { p.classList.add('vis', 'mp-select'); t.textContent = 'SELECT' } else if (addMode) { p.classList.add('vis', 'mp-add'); t.textContent = 'ADD ' + addElement } else p.classList.remove('vis') }
+        function updateSelUI() {
+            const bar = document.getElementById('sel-bar'), chips = document.getElementById('sel-chips'), pb = document.getElementById('sel-plane'), gi = document.getElementById('geom-info');
+            if (!selectMode && !editMode) { bar.classList.remove('vis'); gi.style.display = 'none'; return }
+            if (selectMode) { bar.classList.add('vis'); chips.innerHTML = ''; selectedAtoms.forEach((id, i) => { const a = atoms[id]; const c = document.createElement('span'); c.className = 'sel-chip'; c.innerHTML = `<span class="dot" style="background:${getCOL(a.t)}"></span>${a.t}#${id}<button onclick="desel(${i})">×</button>`; chips.appendChild(c) }); document.getElementById('sel-label').textContent = selectedAtoms.length < 3 ? `Select ${3 - selectedAtoms.length} more:` : 'Atoms:'; pb.style.display = selectedAtoms.length >= 3 ? '' : 'none'; if (selectedAtoms.length >= 3) { gi.style.display = 'block'; gi.textContent = describeGeom(selectedAtoms) } else gi.style.display = 'none' }
+            if (editMode && editSelected.length > 0) { bar.classList.add('vis'); chips.innerHTML = ''; editSelected.forEach((id, i) => { const a = atoms[id]; const c = document.createElement('span'); c.className = 'sel-chip'; c.innerHTML = `<span class="dot" style="background:${getCOL(a.t)}"></span>${a.t}#${id}<button onclick="editDesel(${i})">×</button>`; chips.appendChild(c) }); document.getElementById('sel-label').textContent = 'Editing:'; pb.style.display = 'none'; gi.style.display = 'none' } else if (editMode) { bar.classList.remove('vis') }
+        }
+        function updateEditUI() { document.getElementById('edit-bar').classList.toggle('vis', editMode && editSelected.length > 0); if (editMode && editSelected.length > 0) document.getElementById('edit-hint').textContent = 'Drag axis handles to move. Shift+click for multi-select.'; else if (editMode) document.getElementById('edit-hint').textContent = 'Click an atom to select it.' }
+        function updateLegend() { const el = document.getElementById('plegend'); if (!customGroups.length) { el.innerHTML = ''; return } el.innerHTML = customGroups.map((cg, i) => `<div class="pl-group"><span class="ps" style="background:${cg.color}33;border-color:${cg.color}"></span><span>${describeGeom(cg.ids)}</span><button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--txt3);padding:0" onclick="rmGroup(${i})">×</button></div>`).join('') }
+        function updateStats() { document.getElementById('s-natoms').textContent = atoms.length; document.getElementById('s-nbonds').textContent = bonds.length; const cu = atoms.filter(a => a.t === 'Cu'); if (cu.length >= 2) { document.getElementById('s-cucu').textContent = (v3dist([cu[0].x, cu[0].y, cu[0].z], [cu[1].x, cu[1].y, cu[1].z]) * 2).toFixed(2) + ' Å' } else document.getElementById('s-cucu').textContent = '—'; const cuO = []; bonds.forEach(b => { if ((atoms[b.a]?.t === 'Cu' && atoms[b.b]?.t === 'O') || (atoms[b.b]?.t === 'Cu' && atoms[b.a]?.t === 'O')) cuO.push(v3dist([atoms[b.a].x, atoms[b.a].y, atoms[b.a].z], [atoms[b.b].x, atoms[b.b].y, atoms[b.b].z])) }); document.getElementById('s-cuo').textContent = cuO.length ? (cuO.reduce((s, v) => s + v, 0) / cuO.length * 2).toFixed(2) + ' Å' : '—' }
+        function buildColorRow() { const row = document.getElementById('color-row'); row.innerHTML = ''; ELEMENTS.forEach(e => { const l = document.createElement('label'); l.className = 'cr'; l.innerHTML = `<input type="color" value="${e.col}"><span>${e.sym}</span>`; l.querySelector('input').oninput = ev => { e.col = ev.target.value; COL[e.sym] = ev.target.value; draw() }; row.appendChild(l) }) }
+        function buildElemPalette() { const pal = document.getElementById('elem-palette'); pal.innerHTML = ''; ELEMENTS.forEach(e => { const d = document.createElement('div'); d.className = 'elem-btn' + (addElement === e.sym && addMode ? ' selected' : ''); d.innerHTML = `<span class="sym" style="color:${e.col}">${e.sym}</span><span class="num">${e.name.slice(0, 4)}</span>`; d.onclick = () => { addElement = e.sym; if (!addMode) toggleAddMode(); else { buildElemPalette(); updateModePill() } }; pal.appendChild(d) }) }
+
+        /* ========== EXPORT / IMPORT with persistent storage ========== */
+        function serializeStructure(name) {
+            return JSON.stringify({ version: 8, name: name || 'Unnamed', atoms: atoms.map(a => ({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role, plane: a.plane, id: a.id })), bonds: bonds.map(b => ({ a: b.a, b: b.b, dashed: b.dashed })), customGroups: customGroups.map(cg => ({ ids: cg.ids, color: cg.color })), elements: ELEMENTS.map(e => ({ sym: e.sym, name: e.name, col: e.col, rad: e.rad })), viewState: { angleY, angleX, zoomVal, atomScale, faceAlpha, showBonds, showLabels, activePlane }, timestamp: new Date().toISOString() }, null, 2)
+        }
+
+        function loadStructureFromJSON(jsonStr) {
+            const d = JSON.parse(jsonStr); if (!d.atoms || !d.bonds) throw new Error('Invalid file');
+            atoms = []; bonds = []; aid = 0;
+            d.atoms.forEach(a => { atoms.push({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role || a.t, plane: a.plane || '', id: aid++ }) });
+            d.bonds.forEach(b => { bonds.push({ a: b.a, b: b.b, dashed: !!b.dashed }) });
+            if (d.customGroups) customGroups = d.customGroups.map(cg => ({ ids: cg.ids, color: cg.color, idx: Date.now() }));
+            if (d.elements) { d.elements.forEach(e => { if (!ELEMENTS.find(x => x.sym === e.sym)) { ELEMENTS.push({ sym: e.sym, name: e.name, col: e.col, rad: e.rad, roles: { [e.sym]: [e.name, 'Custom element'] } }); COL[e.sym] = e.col } else { const ex = ELEMENTS.find(x => x.sym === e.sym); ex.col = e.col; COL[e.sym] = e.col } }) }
+            if (d.viewState) {
+                angleY = d.viewState.angleY ?? angleY; angleX = d.viewState.angleX ?? angleX; zoomVal = d.viewState.zoomVal || 72; atomScale = d.viewState.atomScale || 1; faceAlpha = d.viewState.faceAlpha ?? faceAlpha; showBonds = d.viewState.showBonds ?? true; showLabels = d.viewState.showLabels ?? false; activePlane = d.viewState.activePlane || 'none';
+                document.getElementById('zoom').value = zoomVal; document.getElementById('zv').textContent = Math.round(zoomVal); document.getElementById('asize').value = atomScale * 100; document.getElementById('asv').textContent = Math.round(atomScale * 100) + '%'; document.getElementById('faceOpac').value = faceAlpha * 100; document.getElementById('fov').textContent = Math.round(faceAlpha * 100) + '%'; document.getElementById('showBonds').checked = showBonds; document.getElementById('showLabels').checked = showLabels; document.getElementById('autoRot').checked = false; autoRotate = false
+            }
+            editSelected = []; selectedAtoms = []; buildColorRow(); buildElemPalette(); updateSelUI(); updateEditUI(); updateLegend(); updateStats(); draw()
+        }
+
+        // Save to persistent storage with localStorage fallback
+        async function saveToStorage(name, json) {
+            try {
+                if (window.storage) await window.storage.set('struct:' + name, json);
+                else localStorage.setItem('struct:' + name, json);
+            } catch (e) { }
+        }
+        async function listSaved() {
+            try {
+                if (window.storage) {
+                    const r = await window.storage.list('struct:');
+                    return r ? r.keys.map(k => k.replace('struct:', '')) : [];
+                } else {
+                    return Object.keys(localStorage).filter(k => k.startsWith('struct:')).map(k => k.replace('struct:', ''));
+                }
+            } catch (e) { return [] }
+        }
+        async function loadFromStorage(name) {
+            try {
+                if (window.storage) {
+                    const r = await window.storage.get('struct:' + name);
+                    return r ? r.value : null;
+                } else {
+                    return localStorage.getItem('struct:' + name);
+                }
+            } catch (e) { return null }
+        }
+        async function deleteFromStorage(name) {
+            try {
+                if (window.storage) await window.storage.delete('struct:' + name);
+                else localStorage.removeItem('struct:' + name);
+            } catch (e) { }
+        }
+
+        window.openExport = function () { document.getElementById('export-name').value = ''; document.getElementById('modal-export').classList.add('open'); setTimeout(() => document.getElementById('export-name').focus(), 80) };
+        window.doExport = function () {
+            const name = document.getElementById('export-name').value.trim() || 'HKUST-1 model';
+            const json = serializeStructure(name);
+            // Save to browser storage
+            saveToStorage(name, json);
+            // Trigger file download via data URI
+            const a = document.createElement('a');
+            a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+            a.download = name.replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+            a.click();
+            closeModals();
+        };
+        window.openImport = async function () {
+            document.getElementById('file-input').value = '';
+            const list = document.getElementById('saved-list');
+            const saved = await listSaved();
+            if (saved.length) { list.innerHTML = saved.map(n => `<div class="saved-item" onclick="loadSaved('${n.replace(/'/g, "\\'")}')"><span class="si-name">${n}</span><button class="si-del" onclick="event.stopPropagation();deleteSaved('${n.replace(/'/g, "\\'")}')">×</button></div>`).join(''); document.getElementById('import-saved-section').style.display = '' }
+            else { list.innerHTML = '<div style="font:400 11px/1.3 var(--font);color:var(--txt3);padding:6px 0">No saved structures yet.</div>'; document.getElementById('import-saved-section').style.display = '' }
+            document.getElementById('import-status').textContent = ''; document.getElementById('import-status').classList.remove('show');
+            document.getElementById('modal-import').classList.add('open');
+            // Wire file input
+            document.getElementById('file-input').onchange = function (e) {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (ev) { try { loadStructureFromJSON(ev.target.result); closeModals() } catch (err) { document.getElementById('import-status').textContent = 'Error: ' + err.message; document.getElementById('import-status').style.color = 'var(--red)'; document.getElementById('import-status').classList.add('show') } };
+                reader.readAsText(file)
+            };
+        };
+        window.loadSaved = async function (name) { const json = await loadFromStorage(name); if (json) { try { loadStructureFromJSON(json); closeModals() } catch (e) { } } };
+        window.deleteSaved = async function (name) { await deleteFromStorage(name); openImport() };
+        window.closeModals = function () { document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open')) };
+        document.querySelectorAll('.modal-bg').forEach(m => { m.addEventListener('click', e => { if (e.target === m) closeModals() }) });
+
+        window.resetStructure = function () { if (!confirm('Reset to default HKUST-1?')) return; buildDefault(); editSelected = []; selectedAtoms = []; customGroups = []; angleY = 35 * Math.PI / 180; angleX = 20 * Math.PI / 180; zoomVal = 72; atomScale = 1; autoRotate = true; showBonds = true; showLabels = false; faceAlpha = .18; activePlane = 'none'; document.getElementById('zoom').value = 72; document.getElementById('zv').textContent = '72'; document.getElementById('asize').value = 100; document.getElementById('asv').textContent = '100%'; document.getElementById('faceOpac').value = 18; document.getElementById('fov').textContent = '18%'; document.getElementById('autoRot').checked = true; document.getElementById('showBonds').checked = true; document.getElementById('showLabels').checked = false; buildColorRow(); buildElemPalette(); setPlane('none'); updateSelUI(); updateEditUI(); updateLegend(); updateStats(); draw() };
+
+        /* ========== MODE TOGGLES ========== */
+        window.desel = function (i) { selectedAtoms.splice(i, 1); updateSelUI(); draw() };
+        window.editDesel = function (i) { editSelected.splice(i, 1); currentAxes = editSelected.length ? computeEditAxes(editSelected[0]) : []; hoveredAxisIdx = -1; updateSelUI(); updateEditUI(); draw() };
+        window.rmGroup = function (i) { customGroups.splice(i, 1); updateLegend(); draw() };
+
+        function exitAllModes() { if (editMode) toggleEditMode(); if (selectMode) toggleSelectMode(); if (addMode) toggleAddMode() }
+        window.toggleSelectMode = function () { if (editMode) { editMode = false; document.getElementById('btn-edit').classList.remove('on-red') } if (addMode) { addMode = false; document.getElementById('btn-add').classList.remove('on-green') } selectMode = !selectMode; selectedAtoms = []; document.getElementById('btn-select').classList.toggle('on', selectMode); document.getElementById('btn-select').textContent = selectMode ? 'Cancel' : '⬡ Polyhedron'; updateSelUI(); updateEditUI(); updateModePill(); draw() };
+        window.toggleEditMode = function () { if (selectMode) { selectMode = false; document.getElementById('btn-select').classList.remove('on') } if (addMode) { addMode = false; document.getElementById('btn-add').classList.remove('on-green') } editMode = !editMode; editSelected = []; currentAxes = []; hoveredAxisIdx = -1; document.getElementById('btn-edit').classList.toggle('on-red', editMode); document.getElementById('btn-edit').textContent = editMode ? 'Exit edit' : '✎ Move atoms'; updateSelUI(); updateEditUI(); updateModePill(); draw() };
+        window.toggleAddMode = function () { if (selectMode) { selectMode = false; document.getElementById('btn-select').classList.remove('on') } if (editMode) { editMode = false; document.getElementById('btn-edit').classList.remove('on-red') } addMode = !addMode; document.getElementById('btn-add').classList.toggle('on-green', addMode); document.getElementById('btn-add').textContent = addMode ? 'Cancel add' : '+ Add atom'; buildElemPalette(); updateModePill(); draw() };
+
+        /* Bond connect/disconnect/delete */
+        window.connectSelected = function () { const sel = [...editSelected, ...selectedAtoms]; if (sel.length < 2) return; for (let i = 0; i < sel.length; i++)for (let j = i + 1; j < sel.length; j++) { const a = sel[i], b = sel[j]; if (!bonds.some(bd => (bd.a === a && bd.b === b) || (bd.a === b && bd.b === a))) bonds.push({ a, b, dashed: false }) } updateStats(); draw() };
+        window.disconnectSelected = function () { const sel = [...editSelected, ...selectedAtoms]; if (sel.length < 2) return; const sSet = new Set(sel); bonds = bonds.filter(b => !(sSet.has(b.a) && sSet.has(b.b))); updateStats(); draw() };
+        window.deleteSelected = function () { const sel = [...editSelected, ...selectedAtoms]; if (!sel.length) return; const sSet = new Set(sel); atoms = atoms.filter(a => !sSet.has(a.id)); bonds = bonds.filter(b => !sSet.has(b.a) && !sSet.has(b.b)); customGroups = customGroups.map(cg => ({ ...cg, ids: cg.ids.filter(id => !sSet.has(id)) })).filter(cg => cg.ids.length >= 3); editSelected = []; selectedAtoms = []; updateSelUI(); updateEditUI(); updateLegend(); updateStats(); draw() };
+
+        document.getElementById('sel-clear').onclick = () => { selectedAtoms = []; updateSelUI(); draw() };
+        document.getElementById('sel-plane').onclick = () => { if (selectedAtoms.length < 3) return; customGroups.push({ ids: [...selectedAtoms], color: PCOLORS[pcIdx++ % PCOLORS.length], idx: Date.now() }); selectedAtoms = []; updateSelUI(); updateLegend(); draw() };
+
+        /* Custom element */
+        window.openCustomElem = function () { document.getElementById('ce-sym').value = ''; document.getElementById('ce-name').value = ''; document.getElementById('modal-elem').classList.add('open') };
+        window.addCustomElem = function () { const sym = document.getElementById('ce-sym').value.trim(), name = document.getElementById('ce-name').value.trim() || sym, col = document.getElementById('ce-col').value, rad = parseFloat(document.getElementById('ce-rad').value) || 7; if (!sym) return; if (ELEMENTS.find(e => e.sym === sym)) { closeModals(); return } ELEMENTS.push({ sym, name, col, rad, roles: { [sym]: [name, 'Custom element'] } }); COL[sym] = col; buildColorRow(); buildElemPalette(); closeModals() };
+
+        /* ========== TABS ========== */
+        document.querySelectorAll('.tab').forEach(t => { t.addEventListener('click', () => { document.querySelectorAll('.tab').forEach(x => x.classList.remove('active')); document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active')); t.classList.add('active'); document.getElementById('tp-' + t.dataset.tab).classList.add('active') }) });
+
+        /* ========== EVENTS ========== */
+        let clickOk = false, cx0, cy0;
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            if (editMode && editSelected.length > 0) { const ai = hitAxisTest(mx, my); if (ai >= 0) { editDragging = true; editAxis = ai; editDragStart = { mx, my }; autoRotate = false; document.getElementById('autoRot').checked = false; canvas.style.cursor = 'none'; return } }
+            clickOk = true; cx0 = e.clientX; cy0 = e.clientY; dragging = true; lastMX = e.clientX; lastMY = e.clientY; tip.style.opacity = '0'
+        });
+
+        window.addEventListener('mouseup', e => {
+            if (editDragging) { editDragging = false; editAxis = null; editDragStart = null; lastSnap = null; canvas.style.cursor = editMode ? 'crosshair' : 'grab'; document.getElementById('axis-tip').style.opacity = '0'; document.getElementById('snap-indicator').style.opacity = '0'; updateStats(); draw(); return }
+            const wc = clickOk && Math.abs(e.clientX - cx0) < 4 && Math.abs(e.clientY - cy0) < 4; dragging = false; clickOk = false;
+            if (wc && addMode) { const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top; const pos = unproject(mx, my); const newId = aid; atoms.push({ x: pos.x, y: pos.y, z: pos.z, t: addElement, role: addElement, plane: '', id: aid++ }); updateStats(); draw(); return }
+            if (wc && editMode) { const rect = canvas.getBoundingClientRect(), hit = hitTest(e.clientX - rect.left, e.clientY - rect.top); if (hit) { if (e.shiftKey) { const idx = editSelected.indexOf(hit.id); if (idx >= 0) editSelected.splice(idx, 1); else editSelected.push(hit.id) } else editSelected = [hit.id]; currentAxes = editSelected.length ? computeEditAxes(editSelected[0]) : []; hoveredAxisIdx = -1; updateSelUI(); updateEditUI(); draw() } else { editSelected = []; currentAxes = []; hoveredAxisIdx = -1; updateSelUI(); updateEditUI(); draw() } return }
+            if (wc && selectMode) { const rect = canvas.getBoundingClientRect(), hit = hitTest(e.clientX - rect.left, e.clientY - rect.top); if (hit) { const idx = selectedAtoms.indexOf(hit.id); if (idx >= 0) selectedAtoms.splice(idx, 1); else selectedAtoms.push(hit.id); updateSelUI(); draw() } }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (editDragging && editAxis != null) {
+                const ax = currentAxes[editAxis]; if (!ax) return; const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+                const refId = editSelected[0], a = atoms[refId], p0 = project(a.x, a.y, a.z), pEnd = project(a.x + ax.dir[0], a.y + ax.dir[1], a.z + ax.dir[2]);
+                const sdx = pEnd.sx - p0.sx, sdy = pEnd.sy - p0.sy, slen = Math.sqrt(sdx * sdx + sdy * sdy) || 1, sux = sdx / slen, suy = sdy / slen;
+                const mdx = mx - editDragStart.mx, mdy = my - editDragStart.my, prj = mdx * sux + mdy * suy, speed = 0.012;
+                const delta3d = v3scale(ax.dir, prj * speed);
+
+                // Apply with snap
+                editSelected.forEach(id => {
+                    const newPos = [atoms[id].x + delta3d[0], atoms[id].y + delta3d[1], atoms[id].z + delta3d[2]];
+                    const snap = trySnap(id, newPos, ax.dir);
+                    atoms[id].x = snap.pos[0]; atoms[id].y = snap.pos[1]; atoms[id].z = snap.pos[2];
+                    // Show snap indicator
+                    const si = document.getElementById('snap-indicator');
+                    if (snap.snapped) { si.textContent = '⊙ ' + snap.label; si.style.opacity = '1'; si.style.left = (mx + 20) + 'px'; si.style.top = (my + 16) + 'px'; lastSnap = snap.label }
+                    else { si.style.opacity = '0'; lastSnap = null }
+                });
+
+                editDragStart = { mx, my };
+                const atip = document.getElementById('axis-tip'); const col = AXIS_COLORS[editAxis % AXIS_COLORS.length];
+                atip.style.background = col; atip.style.color = '#fff'; atip.style.opacity = '1'; atip.style.left = (mx + 16) + 'px'; atip.style.top = (my - 8) + 'px';
+                atip.textContent = `Δ${(prj * speed * 2).toFixed(3)} Å`;
+                draw(); return
+            }
+            if (dragging && (Math.abs(e.clientX - cx0) > 3 || Math.abs(e.clientY - cy0) > 3)) clickOk = false;
+            if (dragging && !editDragging) { angleY += (e.clientX - lastMX) * .008; angleX += (e.clientY - lastMY) * .008; angleX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, angleX)); lastMX = e.clientX; lastMY = e.clientY; draw() }
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            if (dragging || editDragging) return; const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            if (editMode && editSelected.length > 0) { const ai = hitAxisTest(mx, my); if (ai !== hoveredAxisIdx) { hoveredAxisIdx = ai; draw() } if (ai >= 0) { canvas.style.cursor = 'pointer'; tip.style.opacity = '0'; const atip = document.getElementById('axis-tip'), col = AXIS_COLORS[ai % AXIS_COLORS.length]; atip.style.background = col; atip.style.color = '#fff'; atip.style.opacity = '1'; atip.style.left = (mx + 14) + 'px'; atip.style.top = (my - 8) + 'px'; atip.textContent = currentAxes[ai].label; return } else document.getElementById('axis-tip').style.opacity = '0' }
+            const hit = hitTest(mx, my);
+            if (hit) { hoveredAtom = hit.id; const info = getNAME(hit.role) || [hit.t, '']; tip.querySelector('.en').textContent = info[0] || hit.t; tip.querySelector('.ed').textContent = info[1] || ''; tip.style.opacity = '1'; let tx = mx + 14, ty = my - 10; if (tx + 180 > rect.width) tx = mx - 190; if (ty < 0) ty = 10; tip.style.left = tx + 'px'; tip.style.top = ty + 'px'; canvas.style.cursor = addMode ? 'copy' : (editMode || selectMode ? 'crosshair' : 'pointer') }
+            else { hoveredAtom = null; tip.style.opacity = '0'; canvas.style.cursor = addMode ? 'copy' : (editMode || selectMode ? 'crosshair' : 'grab') } draw()
+        });
+
+        canvas.addEventListener('mouseleave', () => { hoveredAtom = null; hoveredAxisIdx = -1; tip.style.opacity = '0'; document.getElementById('axis-tip').style.opacity = '0'; draw() });
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); dragging = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; clickOk = true; cx0 = lastMX; cy0 = lastMY }, { passive: false });
+        window.addEventListener('touchend', e => {
+            const wc = clickOk && e.changedTouches && Math.abs(e.changedTouches[0].clientX - cx0) < 10 && Math.abs(e.changedTouches[0].clientY - cy0) < 10; dragging = false; clickOk = false;
+            if (wc) {
+                const rect = canvas.getBoundingClientRect(), hit = hitTest(e.changedTouches[0].clientX - rect.left, e.changedTouches[0].clientY - rect.top);
+                if (addMode && !hit) { const mx = e.changedTouches[0].clientX - rect.left, my = e.changedTouches[0].clientY - rect.top; const pos = unproject(mx, my); atoms.push({ x: pos.x, y: pos.y, z: pos.z, t: addElement, role: addElement, plane: '', id: aid++ }); updateStats(); draw(); return }
+                if (hit) {
+                    if (editMode) { editSelected = [hit.id]; currentAxes = computeEditAxes(hit.id); hoveredAxisIdx = -1; updateSelUI(); updateEditUI(); draw() }
+                    else if (selectMode) { const idx = selectedAtoms.indexOf(hit.id); if (idx >= 0) selectedAtoms.splice(idx, 1); else selectedAtoms.push(hit.id); updateSelUI(); draw() }
+                }
+            }
+        });
+        window.addEventListener('touchmove', e => { if (!dragging) return; clickOk = false; angleY += (e.touches[0].clientX - lastMX) * .008; angleX += (e.touches[0].clientY - lastMY) * .008; angleX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, angleX)); lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; draw() }, { passive: false });
+        canvas.addEventListener('wheel', e => { e.preventDefault(); zoomVal = Math.max(30, Math.min(160, zoomVal - e.deltaY * .08)); document.getElementById('zoom').value = zoomVal; document.getElementById('zv').textContent = Math.round(zoomVal); draw() }, { passive: false });
+
+        /* ========== UI BINDINGS ========== */
+        document.getElementById('zoom').oninput = e => { zoomVal = +e.target.value; document.getElementById('zv').textContent = Math.round(zoomVal); draw() };
+        document.getElementById('asize').oninput = e => { atomScale = e.target.value / 100; document.getElementById('asv').textContent = Math.round(e.target.value) + '%'; draw() };
+        document.getElementById('faceOpac').oninput = e => { faceAlpha = e.target.value / 100; document.getElementById('fov').textContent = Math.round(e.target.value) + '%'; draw() };
+        document.getElementById('autoRot').onchange = e => { autoRotate = e.target.checked };
+        document.getElementById('showBonds').onchange = e => { showBonds = e.target.checked; draw() };
+        document.getElementById('showLabels').onchange = e => { showLabels = e.target.checked; draw() };
+        document.getElementById('snapEnabled').onchange = e => { snapEnabled = e.target.checked };
+
+        window.setPlane = function (p) { activePlane = p; document.querySelectorAll('#tp-presets .btn[id^="v-"]').forEach(b => b.classList.remove('on')); const el = document.getElementById('v-' + p); if (el) el.classList.add('on'); draw() };
+        window.setView = function (yD, xD) { angleY = yD * Math.PI / 180; angleX = xD * Math.PI / 180; autoRotate = false; document.getElementById('autoRot').checked = false; draw() };
+
+        /* ========== KEYBOARD ========== */
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { const anyModal = document.querySelector('.modal-bg.open'); if (anyModal) { closeModals(); return } if (editMode) { editSelected = []; currentAxes = []; hoveredAxisIdx = -1; updateSelUI(); updateEditUI(); draw() } if (selectMode) { selectedAtoms = []; updateSelUI(); draw() } }
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            if (e.key === 'e') toggleEditMode();
+            if (e.key === 's' && !e.ctrlKey) toggleSelectMode();
+            if (e.key === 'a') toggleAddMode();
+            if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+        });
+
+        /* ========== INIT ========== */
+        buildColorRow(); buildElemPalette(); updateStats(); updateModePill(); setPlane('none');
+        (function animate() { if (autoRotate) { angleY += .004; draw() } requestAnimationFrame(animate) })(); draw();
+    </script>
+</body>
+
+</html>
