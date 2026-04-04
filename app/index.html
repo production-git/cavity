@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOF Structure Editor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-bar">
+        <div>
+            <div class="title">MOF Structure Editor</div>
+            <div class="subtitle">HKUST-1 Cu₂(BTC)₄ paddle-wheel SBU</div>
+        </div>
+        <div class="actions">
+            <div
+                style="display:flex; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); overflow:hidden; margin-right:4px;">
+                <button class="btn sm" id="btn-undo" onclick="undo()"
+                    style="border:none; border-right:.5px solid var(--brd); border-radius:0; padding:6px 10px;"
+                    title="Undo (Ctrl+Z)" disabled>↶</button>
+                <button class="btn sm" id="btn-redo" onclick="redo()"
+                    style="border:none; border-radius:0; padding:6px 10px;" title="Redo (Ctrl+Y)" disabled>↷</button>
+            </div>
+            <button class="btn" onclick="exportPNG()" title="Save canvas as PNG">↓ PNG</button>
+            <button class="btn" onclick="openExport()">↓ Export</button>
+            <button class="btn" onclick="openImport()">↑ Import</button>
+        </div>
+    </div>
+
+    <div class="wrap" style="height: calc(100vh - 66px);">
+        <canvas id="mol" style="height: 100%; border: none; border-radius: 6px;" role="application"
+            aria-label="Interactive 3D MOF Editor Canvas"></canvas>
+        <div id="tip" role="tooltip" aria-hidden="true"></div>
+        <div id="mode-pill" aria-live="polite"><span class="dot"></span><span class="mode-text"></span></div>
+        <div id="axis-tip" aria-hidden="true"></div>
+        <div id="snap-indicator" aria-hidden="true"></div>
+
+        <!-- Top Left Overlay Panel -->
+        <div id="top-left-panel">
+            <!-- Stats -->
+            <div class="stats panel-box" style="margin: 0; padding: 10px;">
+                <div class="stat" style="border:none; padding:4px; background:transparent;">
+                    <div class="sl">Atoms</div>
+                    <div class="sv" id="s-natoms">—</div>
+                </div>
+                <div class="stat" style="border:none; padding:4px; background:transparent;">
+                    <div class="sl">Bonds</div>
+                    <div class="sv" id="s-nbonds">—</div>
+                </div>
+                <div class="stat" style="border:none; padding:4px; background:transparent;">
+                    <div class="sl">Cu–Cu</div>
+                    <div class="sv" id="s-cucu">—</div>
+                </div>
+                <div class="stat" style="border:none; padding:4px; background:transparent;">
+                    <div class="sl">Cu–O avg</div>
+                    <div class="sv" id="s-cuo">—</div>
+                </div>
+                <div class="stat"
+                    style="width:100%; border:none; border-top:1px solid var(--brd); display:block; padding-top:8px; margin-top:4px; background:transparent; text-align:center;">
+                    <div class="sl" style="margin-bottom: 4px;">Elements</div>
+                    <div class="sv" id="s-element-counts" style="font-size:11px; line-height:1.5;">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Right Overlay Panel -->
+        <div id="top-right-panel">
+
+
+            <!-- Collapsible Polyhedra List -->
+            <details class="panel-box" style="padding: 10px;" id="polyhedra-wrap">
+                <summary class="lbl" style="cursor: pointer; margin: 0; user-select: none;">Polyhedra List ▾</summary>
+                <div id="plegend" style="margin-top: 8px;"></div>
+            </details>
+
+            <!-- Tools & View Settings Tabs -->
+            <div class="panel-box" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                <div class="tabs" style="margin: 0; border-bottom: .5px solid var(--brd); background: var(--bg2);">
+                    <div class="tab active" data-tab="tools" id="tab-btn-tools">Tools & Edit</div>
+                    <div class="tab" data-tab="view" id="tab-btn-view">View Settings</div>
+                    <div class="tab" data-tab="presets">Presets</div>
+                </div>
+
+                <!-- Tools tab -->
+                <div class="tab-panel active" id="tp-tools"
+                    style="padding: 12px; max-height: calc(100vh - 280px); overflow-y: auto;">
+                    <div class="row">
+                        <div class="lbl">Modes (Hotkeys: V, E, S, A, D, B)</div>
+                    </div>
+                    <div class="row" style="gap:5px" role="toolbar" aria-label="Editor Modes">
+                        <button class="btn on on-view" id="btn-view" onclick="setMode('view')" title="Shortcut: V"
+                            aria-label="View Mode"><b>[V]</b> View Only</button>
+                        <button class="btn" id="btn-move" onclick="setMode('move')" title="Shortcut: E"
+                            aria-label="Move/Rotate Mode"><b>[E]</b> ✎ Move</button>
+                        <button class="btn" id="btn-poly" onclick="setMode('poly')" title="Shortcut: S"
+                            aria-label="Polyhedron Mode"><b>[S]</b> ⬡ Poly</button>
+                        <button class="btn" id="btn-add" onclick="setMode('add')" title="Shortcut: A"
+                            aria-label="Add/Delete Mode"><b>[A]</b> + Add</button>
+                    </div>
+                    <div class="row" style="margin-bottom:10px">
+                        <button class="btn" id="btn-bonds" onclick="setMode('bonds')" title="Shortcut: B"
+                            aria-label="Edit Bonds Mode" style="width:100%"><b>[B]</b> ▬ Edit Bonds</button>
+                    </div>
+
+                    <!-- Move Panel Tools -->
+                    <div id="move-panel"
+                        style="display:none; padding:10px; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); margin-bottom:10px;">
+                        <div class="row" style="align-items:center; margin-bottom: 6px;">
+                            <input type="checkbox" id="autoRelax" onchange="autoRelax = this.checked">
+                            <label for="autoRelax" class="lbl" style="margin-left:5px;">Auto-Relax Connections on
+                                Drag</label>
+                        </div>
+                        <div class="row" style="align-items:center;">
+                            <input type="checkbox" id="snapEnabled" checked>
+                            <label for="snapEnabled" class="lbl" style="margin-left:5px;">Snap Guides</label>
+                        </div>
+                    </div>
+
+                    <!-- Add/Del Sub-panel -->
+                    <div id="add-panel"
+                        style="display:none; padding:10px; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); margin-bottom:10px;">
+                        <div class="row" style="margin-bottom:10px">
+                            <button class="btn sm on" id="btn-sub-add" onclick="setAddSubMode('add')">Extrude New
+                                Atom</button>
+                            <button class="btn sm" id="btn-sub-del" onclick="setAddSubMode('delete')">Delete
+                                Tool</button>
+                        </div>
+                        <div id="palette-container">
+                            <div class="lbl" style="margin-bottom:6px">Element palette:</div>
+                            <div class="elem-palette" id="elem-palette"></div>
+                            <div class="row" style="margin-top:10px">
+                                <button class="btn sm" onclick="openCustomElem()">+ Custom element</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" style="margin-top:14px">
+                        <button class="btn" onclick="resetStructure()" style="width:100%">↻ Reset default SBU</button>
+                    </div>
+                </div>
+
+                <!-- View tab -->
+                <div class="tab-panel" id="tp-view"
+                    style="padding: 12px; max-height: calc(100vh - 280px); overflow-y: auto;">
+                    <div class="row" style="margin-bottom: 12px;">
+                        <button class="btn on on-view" id="btn-view-only-mode" onclick="setMode('view')"
+                            style="width:100%"><b>[V]</b> Return to Move Mode</button>
+                    </div>
+                    <div class="row">
+                        <div class="lbl">Camera</div>
+                    </div>
+                    <div class="row">
+                        <div class="sr"><span>Zoom</span><input type="range" id="zoom" min="30" max="160" value="72"
+                                step="1"><span id="zv">72</span></div>
+                        <div class="sr"><span>Atom size</span><input type="range" id="asize" min="50" max="200"
+                                value="100" step="1"><span id="asv">100%</span></div>
+                        <div class="sr"><span>Face α</span><input type="range" id="faceOpac" min="5" max="60" value="18"
+                                step="1"><span id="fov">18%</span></div>
+                    </div>
+                    <div class="row">
+                        <label class="ck"><input type="checkbox" id="autoRot" checked> Auto-rotate</label>
+                        <label class="ck"><input type="checkbox" id="showBonds" checked> Bonds</label>
+                        <label class="ck"><input type="checkbox" id="showLabels"> Labels</label>
+                        <label class="ck"><input type="checkbox" id="fogEnabled"> Depth fog</label>
+                    </div>
+                    <div class="row" style="margin-top:4px;">
+                        <button class="btn sm" onclick="toggleTheme()" style="flex:1">Toggle Theme (Dark/Light)</button>
+                    </div>
+                    <div class="row">
+                        <div class="lbl">Colours</div>
+                    </div>
+                    <div class="row" id="color-row"></div>
+                </div>
+
+                <!-- Presets tab -->
+                <div class="tab-panel" id="tp-presets"
+                    style="padding: 12px; max-height: calc(100vh - 280px); overflow-y: auto;">
+                    <div class="row">
+                        <div class="lbl">Highlight planes</div>
+                    </div>
+                    <div class="row">
+                        <button class="btn" id="v-none" onclick="setPlane('none')" style="flex:1">None</button>
+                        <button class="btn" id="v-cu-o" onclick="setPlane('cu-o')" style="flex:1">Cu–O</button>
+                        <button class="btn" id="v-carb" onclick="setPlane('carb')" style="flex:1">Carb</button>
+                        <button class="btn" id="v-ring" onclick="setPlane('ring')" style="flex:1">Rings</button>
+                    </div>
+                    <div class="row" id="commit-preset-row" style="display:none">
+                        <button class="btn primary" onclick="commitPreset()" style="width:100%">↓ Commit preset polyhedra</button>
+                    </div>
+                    <div class="row">
+                        <div class="lbl">Camera presets</div>
+                    </div>
+                    <div class="row">
+                        <button class="btn" onclick="setView(0,-90)" style="flex:1">Top</button>
+                        <button class="btn" onclick="setView(0,0)" style="flex:1">Side</button>
+                        <button class="btn" onclick="setView(35,20)" style="flex:1">¾ view</button>
+                    </div>
+                    <div class="row" style="margin-top:8px">
+                        <div class="lbl">Supercell tiling</div>
+                    </div>
+                    <div class="row">
+                        <label class="ck"><input type="checkbox" id="supercellEnabled"> Enable</label>
+                        <div style="display:flex; gap:6px; align-items:center; margin-left:auto;">
+                            <span style="font:400 11px/1 var(--font);color:var(--txt3)">X</span>
+                            <select id="sc-nx" style="font:400 11px/1 var(--font);border:.5px solid var(--brd);border-radius:4px;padding:3px 6px;background:var(--bg2);color:var(--txt1)">
+                                <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+                            </select>
+                            <span style="font:400 11px/1 var(--font);color:var(--txt3)">Y</span>
+                            <select id="sc-ny" style="font:400 11px/1 var(--font);border:.5px solid var(--brd);border-radius:4px;padding:3px 6px;background:var(--bg2);color:var(--txt1)">
+                                <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+                            </select>
+                            <span style="font:400 11px/1 var(--font);color:var(--txt3)">Z</span>
+                            <select id="sc-nz" style="font:400 11px/1 var(--font);border:.5px solid var(--brd);border-radius:4px;padding:3px 6px;background:var(--bg2);color:var(--txt1)">
+                                <option value="1" selected>1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context bars -->
+    <div class="ctx-bar" id="sel-bar"
+        style="position:absolute; bottom:20px; left:20px; z-index:10; background:var(--color-background-primary);"><span
+            id="sel-label">Select atoms:</span><span id="sel-chips"></span><button class="btn sm" id="sel-clear"
+            style="margin-left:auto">Clear</button><button class="btn sm on" id="sel-plane" style="display:none">Commit
+            polyhedron</button></div>
+    <div class="ctx-bar" id="edit-bar"
+        style="position:absolute; bottom:20px; left:20px; z-index:10; background:var(--color-background-primary);"><span
+            id="edit-hint" style="font:400 11px/1.3 var(--font);color:var(--txt3)"></span></div>
+    <div id="geom-info" style="position:absolute; bottom:60px; left:20px; z-index:10;"></div>
+
+    <!-- Export Modal -->
+    <div class="modal-bg" id="modal-export">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Export structure</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Give your structure a name and download it as a .json file.</p>
+                <input type="text" id="export-name" placeholder="My HKUST-1 model" spellcheck="false">
+            </div>
+            <div class="mdl-f">
+                <button class="btn" onclick="closeModals()">Cancel</button>
+                <button class="btn primary" onclick="doExport()">Download .json</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-bg" id="modal-import">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Import structure</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Select a previously exported .json file to load.</p>
+                <button class="btn primary" onclick="document.getElementById('file-input').click()">Browse local
+                    file...</button>
+                <input type="file" id="file-input" accept=".json,.xyz,.mol,.cif" style="display:none">
+
+                <div id="import-saved-section" style="margin-top:16px">
+                    <div class="lbl">Saved in browser</div>
+                    <div class="saved-list" id="saved-list"></div>
+                </div>
+            </div>
+            <div class="mdl-f">
+                <span class="status" id="import-status"></span>
+                <button class="btn" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom element modal -->
+    <div class="modal-bg" id="modal-elem">
+        <div class="mdl">
+            <div class="mdl-h">
+                <h3>Add custom element</h3><button onclick="closeModals()">×</button>
+            </div>
+            <div class="mdl-b">
+                <p>Enter element details to add to your palette.</p>
+                <div class="custom-row"><input type="text" id="ce-sym" placeholder="Symbol (e.g. Zn)"
+                        maxlength="3"><input type="text" id="ce-name" placeholder="Name (e.g. Zinc)"></div>
+                <div class="custom-row"><input type="color" id="ce-col" value="#5B8C5A"
+                        style="width:40px;height:32px;border-radius:6px"><input type="number" id="ce-rad"
+                        placeholder="Radius (px, e.g. 8)" min="3" max="20" step="0.5" value="7"></div>
+            </div>
+            <div class="mdl-f">
+                <button class="btn" onclick="closeModals()">Cancel</button>
+                <button class="btn primary" onclick="addCustomElem()">Add element</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

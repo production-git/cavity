@@ -1,978 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOF Structure Editor</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=JetBrains+Mono:wght@400;500&display=swap');
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0
-        }
-
-        :root {
-            --accent: #3B6EE6;
-            --accent-dim: rgba(59, 110, 230, .12);
-            --red: #E24B4A;
-            --green: #1D9E75;
-            --amber: #BA7517;
-            --purple: #7B5EC6;
-            --font: 'DM Sans', system-ui, sans-serif;
-            --mono: 'JetBrains Mono', monospace;
-            --r: 8px;
-            --bg2: #f9f9fa;
-            --brd: #e5e7eb;
-            --txt1: #111827;
-            --txt2: #4b5563;
-            --txt3: #9ca3af;
-            --color-background-primary: #ffffff;
-            --color-background-secondary: #f3f4f6;
-            --color-border-secondary: #d1d5db;
-            --color-border-tertiary: #e5e7eb;
-            --color-text-primary: #111827;
-            --color-text-secondary: #4b5563;
-            --color-text-tertiary: #9ca3af
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg2: #1f2937;
-                --brd: #374151;
-                --txt1: #f9fafb;
-                --txt2: #d1d5db;
-                --txt3: #9ca3af;
-                --color-background-primary: #111827;
-                --color-background-secondary: #1f2937;
-                --color-border-secondary: #4b5563;
-                --color-border-tertiary: #374151;
-                --color-text-primary: #f9fafb;
-                --color-text-secondary: #d1d5db;
-                --color-text-tertiary: #9ca3af
-            }
-        }
-
-        body {
-            font-family: var(--font);
-            background: var(--color-background-primary);
-            color: var(--txt1);
-            padding: 12px;
-        }
-
-        /* --- Layout --- */
-        .app-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin: 0 0 12px;
-            flex-wrap: wrap
-        }
-
-        .app-bar .title {
-            font: 600 16px/1.2 var(--font);
-            color: var(--txt1);
-            letter-spacing: -.2px
-        }
-
-        .app-bar .subtitle {
-            font: 400 11px/1.2 var(--font);
-            color: var(--txt3)
-        }
-
-        .app-bar .actions {
-            display: flex;
-            gap: 6px;
-            align-items: center
-        }
-
-        .wrap {
-            position: relative
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            cursor: grab;
-            border-radius: 10px;
-            background: var(--bg2);
-            border: .5px solid var(--brd)
-        }
-
-        canvas:active {
-            cursor: grabbing
-        }
-
-        /* --- Multi-HUD Tooltips on canvas --- */
-        #tip {
-            position: absolute;
-            pointer-events: none;
-            padding: 6px 10px;
-            border-radius: var(--r);
-            background: var(--color-background-primary);
-            border: .5px solid var(--color-border-secondary);
-            font: 400 12px/1.4 var(--font);
-            color: var(--txt1);
-            opacity: 0;
-            transition: opacity .1s;
-            white-space: nowrap;
-            z-index: 10;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        #tip .en {
-            font-weight: 600;
-            font-size: 12px;
-        }
-
-        #tip .ed {
-            font-size: 10.5px;
-            color: var(--txt2);
-        }
-
-        #mode-pill {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            display: none;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 10px 4px 7px;
-            border-radius: 16px;
-            font: 500 10.5px/1 var(--font);
-            letter-spacing: .3px;
-            text-transform: uppercase;
-            z-index: 5;
-            pointer-events: none
-        }
-
-        #mode-pill.vis {
-            display: flex
-        }
-
-        #mode-pill .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            animation: pulse 1.8s ease infinite
-        }
-
-        .mp-edit {
-            background: rgba(226, 75, 74, .1);
-            color: #E24B4A;
-            border: .5px solid rgba(226, 75, 74, .2)
-        }
-
-        .mp-edit .dot {
-            background: #E24B4A
-        }
-
-        .mp-select {
-            background: rgba(123, 94, 198, .1);
-            color: var(--purple);
-            border: .5px solid rgba(123, 94, 198, .2)
-        }
-
-        .mp-select .dot {
-            background: var(--purple)
-        }
-
-        .mp-add {
-            background: rgba(29, 158, 117, .1);
-            color: var(--green);
-            border: .5px solid rgba(29, 158, 117, .2)
-        }
-
-        .mp-add .dot {
-            background: var(--green)
-        }
-
-        .mp-bonds {
-            background: rgba(186, 117, 23, .1);
-            color: var(--amber);
-            border: .5px solid rgba(186, 117, 23, .2)
-        }
-
-        .mp-bonds .dot {
-            background: var(--amber)
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1
-            }
-
-            50% {
-                opacity: .35
-            }
-        }
-
-        #axis-tip {
-            position: absolute;
-            pointer-events: none;
-            padding: 4px 9px;
-            border-radius: 6px;
-            font: 500 10px/1 var(--mono);
-            background: var(--accent);
-            color: #fff;
-            opacity: 0;
-            transition: opacity .08s;
-            z-index: 10;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1)
-        }
-
-        #snap-indicator {
-            position: absolute;
-            pointer-events: none;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font: 600 10px/1 var(--mono);
-            background: var(--green);
-            color: #fff;
-            opacity: 0;
-            transition: opacity .1s;
-            z-index: 10;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .12)
-        }
-
-        /* --- Button styles --- */
-        .btn {
-            font: 500 12px/1 var(--font);
-            padding: 7px 12px;
-            border-radius: var(--r);
-            border: .5px solid var(--color-border-secondary);
-            background: var(--color-background-primary);
-            color: var(--txt2);
-            cursor: pointer;
-            transition: all .12s;
-            white-space: nowrap;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px
-        }
-
-        .btn:hover:not([disabled]) {
-            background: var(--bg2);
-            color: var(--txt1)
-        }
-
-        .btn[disabled] {
-            opacity: 0.4;
-            cursor: default
-        }
-
-        /* Mode active states */
-        .btn.on.on-view {
-            background: var(--bg2);
-            color: var(--txt1);
-            border-color: var(--brd);
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, .05)
-        }
-
-        .btn.on.on-red {
-            background: rgba(226, 75, 74, .07);
-            color: var(--red);
-            border-color: rgba(226, 75, 74, .25)
-        }
-
-        .btn.on.on-purple {
-            background: rgba(123, 94, 198, .07);
-            color: var(--purple);
-            border-color: rgba(123, 94, 198, .25)
-        }
-
-        .btn.on.on-green {
-            background: rgba(29, 158, 117, .07);
-            color: var(--green);
-            border-color: rgba(29, 158, 117, .25)
-        }
-
-        .btn.on.on-amber {
-            background: rgba(186, 117, 23, .07);
-            color: var(--amber);
-            border-color: rgba(186, 117, 23, .25)
-        }
-
-        .btn.primary {
-            background: var(--accent);
-            color: #fff;
-            border-color: var(--accent)
-        }
-
-        .btn.primary:hover:not([disabled]) {
-            background: #2a5ad4;
-            color: #fff
-        }
-
-        .btn.sm {
-            font-size: 10.5px;
-            padding: 5px 9px
-        }
-
-        /* --- Tabs --- */
-        .tabs {
-            display: flex;
-            gap: 0;
-            margin: 10px 0 0;
-            border-bottom: .5px solid var(--brd)
-        }
-
-        .tab {
-            font: 500 12px/1 var(--font);
-            padding: 8px 14px;
-            cursor: pointer;
-            color: var(--txt3);
-            border-bottom: 2px solid transparent;
-            transition: all .15s;
-            user-select: none
-        }
-
-        .tab:hover {
-            color: var(--txt2)
-        }
-
-        .tab.active {
-            color: var(--accent);
-            border-bottom-color: var(--accent)
-        }
-
-        .tab-panel {
-            display: none;
-            padding: 12px 0 0
-        }
-
-        .tab-panel.active {
-            display: block
-        }
-
-        /* --- Panels, stats, controls inside tabs --- */
-        .row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            margin: 0 0 10px
-        }
-
-        .row:last-child {
-            margin: 0
-        }
-
-        .lbl {
-            font: 600 9.5px/1 var(--font);
-            color: var(--txt3);
-            letter-spacing: .5px;
-            text-transform: uppercase;
-            width: 100%;
-            margin: 0 0 4px
-        }
-
-        .sr {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font: 400 12px/1 var(--font);
-            color: var(--txt2);
-            min-width: 120px;
-            flex: 1
-        }
-
-        .sr input[type=range] {
-            flex: 1;
-            min-width: 36px;
-            accent-color: var(--accent)
-        }
-
-        .sr span:last-child {
-            min-width: 26px;
-            text-align: right;
-            font: 500 10px/1 var(--mono);
-            color: var(--txt3)
-        }
-
-        .ck {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font: 400 12px/1 var(--font);
-            color: var(--txt2);
-            cursor: pointer;
-            user-select: none
-        }
-
-        .ck input {
-            accent-color: var(--accent)
-        }
-
-        .cr {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font: 400 12px/1 var(--font);
-            color: var(--txt2)
-        }
-
-        .cr input[type=color] {
-            width: 24px;
-            height: 24px;
-            border: .5px solid var(--brd);
-            border-radius: 6px;
-            padding: 2px;
-            cursor: pointer;
-            background: transparent
-        }
-
-        /* --- Stats --- */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
-            gap: 8px;
-            margin: 10px 0 0
-        }
-
-        .stat {
-            background: var(--bg2);
-            border-radius: var(--r);
-            padding: 8px 12px;
-            border: .5px solid var(--brd)
-        }
-
-        .stat .sl {
-            font: 400 9.5px/1 var(--font);
-            color: var(--txt3);
-            text-transform: uppercase;
-            letter-spacing: .3px
-        }
-
-        .stat .sv {
-            font: 500 14px/1.3 var(--font);
-            color: var(--txt1);
-            margin-top: 4px
-        }
-
-        /* --- Context bars --- */
-        .ctx-bar {
-            font: 400 12px/1.3 var(--font);
-            color: var(--txt2);
-            padding: 8px 12px;
-            background: var(--bg2);
-            border-radius: var(--r);
-            margin: 8px 0 0;
-            display: none;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
-            border: .5px solid var(--brd)
-        }
-
-        .ctx-bar.vis {
-            display: flex
-        }
-
-        .sel-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font: 500 10px/1.3 var(--font);
-            border: .5px solid var(--color-border-secondary);
-            background: var(--color-background-primary)
-        }
-
-        .sel-chip .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block
-        }
-
-        .sel-chip button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 12px;
-            color: var(--txt3);
-            padding: 0 0 0 2px;
-            line-height: 1
-        }
-
-        #plegend {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin: 8px 0 0;
-            font: 400 11px/1.3 var(--font);
-            color: var(--txt2)
-        }
-
-        .pl-group {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 6px
-        }
-
-        .pl-group .ps {
-            width: 14px;
-            height: 10px;
-            border-radius: 2px;
-            display: inline-block;
-            border: 1.5px solid
-        }
-
-        #geom-info {
-            font: 400 11px/1.3 var(--font);
-            color: var(--txt2);
-            margin: 6px 0 0;
-            padding: 6px 12px;
-            background: var(--bg2);
-            border-radius: 6px;
-            display: none;
-            border: .5px solid var(--brd)
-        }
-
-        /* --- Element palette --- */
-        .elem-palette {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin: 6px 0 0
-        }
-
-        .elem-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: var(--r);
-            border: .5px solid var(--brd);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all .12s;
-            background: var(--color-background-primary)
-        }
-
-        .elem-btn:hover {
-            border-color: var(--accent);
-            transform: scale(1.05)
-        }
-
-        .elem-btn.selected {
-            border-color: var(--accent);
-            background: var(--accent-dim);
-            box-shadow: 0 0 0 2px rgba(59, 110, 230, .15)
-        }
-
-        .elem-btn .sym {
-            font: 600 14px/1 var(--font)
-        }
-
-        .elem-btn .num {
-            font: 400 9px/1 var(--mono);
-            color: var(--txt3);
-            margin-top: 2px
-        }
-
-        /* --- Modal --- */
-        .modal-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, .5);
-            z-index: 100;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 16px
-        }
-
-        .modal-bg.open {
-            display: flex
-        }
-
-        .mdl {
-            background: var(--color-background-primary);
-            border-radius: 12px;
-            border: .5px solid var(--color-border-secondary);
-            box-shadow: 0 16px 48px rgba(0, 0, 0, .2);
-            max-width: 420px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden
-        }
-
-        .mdl-h {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 18px;
-            border-bottom: .5px solid var(--brd)
-        }
-
-        .mdl-h h3 {
-            font: 600 14px/1 var(--font);
-            color: var(--txt1)
-        }
-
-        .mdl-h button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 18px;
-            color: var(--txt3);
-            line-height: 1;
-            padding: 0
-        }
-
-        .mdl-b {
-            padding: 14px 18px
-        }
-
-        .mdl-b p {
-            font: 400 13px/1.5 var(--font);
-            color: var(--txt2);
-            margin: 0 0 10px
-        }
-
-        .mdl-b input[type=text] {
-            width: 100%;
-            font: 400 13px/1.4 var(--font);
-            color: var(--txt1);
-            background: var(--bg2);
-            border: .5px solid var(--brd);
-            border-radius: var(--r);
-            padding: 10px 14px
-        }
-
-        .mdl-b input[type=text]:focus {
-            outline: none;
-            border-color: var(--accent)
-        }
-
-        .mdl-f {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            padding: 12px 18px;
-            border-top: .5px solid var(--brd)
-        }
-
-        .mdl-f .status {
-            font: 400 12px/1 var(--font);
-            color: var(--green);
-            align-self: center;
-            margin-right: auto;
-            opacity: 0;
-            transition: opacity .2s
-        }
-
-        .mdl-f .status.show {
-            opacity: 1
-        }
-
-        .saved-list {
-            max-height: 180px;
-            overflow-y: auto;
-            margin: 8px 0 0
-        }
-
-        .saved-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            border-radius: var(--r);
-            cursor: pointer;
-            transition: background .1s;
-            border: .5px solid transparent
-        }
-
-        .saved-item:hover {
-            background: var(--bg2);
-            border-color: var(--brd)
-        }
-
-        .saved-item .si-name {
-            font: 500 13px/1.2 var(--font);
-            color: var(--txt1);
-            flex: 1
-        }
-
-        .saved-item .si-date {
-            font: 400 11px/1 var(--font);
-            color: var(--txt3)
-        }
-
-        .saved-item .si-del {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: var(--txt3);
-            padding: 0;
-            opacity: 0;
-            transition: opacity .1s
-        }
-
-        .saved-item:hover .si-del {
-            opacity: 1
-        }
-
-        #file-input {
-            display: none
-        }
-
-        /* --- Custom element modal --- */
-        .custom-row {
-            display: flex;
-            gap: 10px;
-            margin: 8px 0 0
-        }
-
-        .custom-row input {
-            flex: 1;
-            font: 400 13px/1 var(--font);
-            color: var(--txt1);
-            background: var(--bg2);
-            border: .5px solid var(--brd);
-            border-radius: 6px;
-            padding: 8px 12px
-        }
-
-        .custom-row input:focus {
-            outline: none;
-            border-color: var(--accent)
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="app-bar">
-        <div>
-            <div class="title">MOF Structure Editor</div>
-            <div class="subtitle">HKUST-1 Cu₂(BTC)₄ paddle-wheel SBU</div>
-        </div>
-        <div class="actions">
-            <div
-                style="display:flex; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); overflow:hidden; margin-right:4px;">
-                <button class="btn sm" id="btn-undo" onclick="undo()"
-                    style="border:none; border-right:.5px solid var(--brd); border-radius:0; padding:6px 10px;"
-                    title="Undo (Ctrl+Z)" disabled>↶</button>
-                <button class="btn sm" id="btn-redo" onclick="redo()"
-                    style="border:none; border-radius:0; padding:6px 10px;" title="Redo (Ctrl+Y)" disabled>↷</button>
-            </div>
-            <button class="btn" onclick="openExport()">↓ Export</button>
-            <button class="btn" onclick="openImport()">↑ Import</button>
-        </div>
-    </div>
-
-    <div class="wrap">
-        <canvas id="mol" height="580"></canvas>
-        <div id="tip"></div>
-        <div id="mode-pill"><span class="dot"></span><span class="mode-text"></span></div>
-        <div id="axis-tip"></div>
-        <div id="snap-indicator"></div>
-    </div>
-
-    <!-- Context bars -->
-    <div class="ctx-bar" id="sel-bar"><span id="sel-label">Select atoms:</span><span id="sel-chips"></span><button
-            class="btn sm" id="sel-clear" style="margin-left:auto">Clear</button><button class="btn sm on"
-            id="sel-plane" style="display:none">Commit polyhedron</button></div>
-    <div class="ctx-bar" id="edit-bar"><span id="edit-hint"
-            style="font:400 11px/1.3 var(--font);color:var(--txt3)"></span></div>
-    <div id="geom-info"></div>
-    <div id="plegend"></div>
-
-    <!-- Stats -->
-    <div class="stats">
-        <div class="stat">
-            <div class="sl">Atoms</div>
-            <div class="sv" id="s-natoms">—</div>
-        </div>
-        <div class="stat">
-            <div class="sl">Bonds</div>
-            <div class="sv" id="s-nbonds">—</div>
-        </div>
-        <div class="stat">
-            <div class="sl">Cu–Cu</div>
-            <div class="sv" id="s-cucu">—</div>
-        </div>
-        <div class="stat">
-            <div class="sl">Cu–O avg</div>
-            <div class="sv" id="s-cuo">—</div>
-        </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="tabs">
-        <div class="tab active" data-tab="tools">Tools & Edit</div>
-        <div class="tab" data-tab="view">View Settings</div>
-        <div class="tab" data-tab="presets">Presets</div>
-    </div>
-
-    <!-- Tools tab -->
-    <div class="tab-panel active" id="tp-tools">
-        <div class="row">
-            <div class="lbl">Modes (Hotkeys: V, E, S, A, D, B)</div>
-        </div>
-        <div class="row" style="gap:5px">
-            <button class="btn on on-view" id="btn-view" onclick="setMode('view')">View Only</button>
-            <button class="btn" id="btn-move" onclick="setMode('move')">✎ Move/Rotate</button>
-            <button class="btn" id="btn-poly" onclick="setMode('poly')">⬡ Polyhedron</button>
-            <button class="btn" id="btn-add" onclick="setMode('add')">+ Add/Del Atoms</button>
-            <button class="btn" id="btn-bonds" onclick="setMode('bonds')">▬ Edit Bonds</button>
-        </div>
-
-        <!-- Add/Del Sub-panel -->
-        <div id="add-panel"
-            style="display:none; padding:10px; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); margin-bottom:10px;">
-            <div class="row" style="margin-bottom:10px">
-                <button class="btn sm on" id="btn-sub-add" onclick="setAddSubMode('add')">Extrude New Atom</button>
-                <button class="btn sm" id="btn-sub-del" onclick="setAddSubMode('delete')">Delete Tool</button>
-            </div>
-            <div id="palette-container">
-                <div class="lbl" style="margin-bottom:6px">Element palette:</div>
-                <div class="elem-palette" id="elem-palette"></div>
-                <div class="row" style="margin-top:10px">
-                    <button class="btn sm" onclick="openCustomElem()">+ Custom element</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="row" style="margin-top:14px">
-            <button class="btn" onclick="resetStructure()">↻ Reset default SBU</button>
-        </div>
-    </div>
-
-    <!-- View tab -->
-    <div class="tab-panel" id="tp-view">
-        <div class="row">
-            <div class="lbl">Camera</div>
-        </div>
-        <div class="row">
-            <div class="sr"><span>Zoom</span><input type="range" id="zoom" min="30" max="160" value="72" step="1"><span
-                    id="zv">72</span></div>
-            <div class="sr"><span>Atom size</span><input type="range" id="asize" min="50" max="200" value="100"
-                    step="1"><span id="asv">100%</span></div>
-            <div class="sr"><span>Face α</span><input type="range" id="faceOpac" min="5" max="60" value="18"
-                    step="1"><span id="fov">18%</span></div>
-        </div>
-        <div class="row">
-            <label class="ck"><input type="checkbox" id="autoRot" checked> Auto-rotate</label>
-            <label class="ck"><input type="checkbox" id="showBonds" checked> Bonds</label>
-            <label class="ck"><input type="checkbox" id="showLabels"> Labels</label>
-            <label class="ck"><input type="checkbox" id="snapEnabled" checked> Snap guides</label>
-        </div>
-        <div class="row">
-            <div class="lbl">Colours</div>
-        </div>
-        <div class="row" id="color-row"></div>
-    </div>
-
-    <!-- Presets tab -->
-    <div class="tab-panel" id="tp-presets">
-        <div class="row">
-            <div class="lbl">Highlight planes</div>
-        </div>
-        <div class="row">
-            <button class="btn" id="v-none" onclick="setPlane('none')">None</button>
-            <button class="btn" id="v-cu-o" onclick="setPlane('cu-o')">Cu–O equatorial</button>
-            <button class="btn" id="v-carb" onclick="setPlane('carb')">Carboxylate</button>
-            <button class="btn" id="v-ring" onclick="setPlane('ring')">Rings</button>
-        </div>
-        <div class="row">
-            <div class="lbl">Camera presets</div>
-        </div>
-        <div class="row">
-            <button class="btn" onclick="setView(0,-90)">Top</button>
-            <button class="btn" onclick="setView(0,0)">Side</button>
-            <button class="btn" onclick="setView(35,20)">¾ view</button>
-        </div>
-    </div>
-
-    <!-- Export Modal -->
-    <div class="modal-bg" id="modal-export">
-        <div class="mdl">
-            <div class="mdl-h">
-                <h3>Export structure</h3><button onclick="closeModals()">×</button>
-            </div>
-            <div class="mdl-b">
-                <p>Give your structure a name and download it as a .json file.</p>
-                <input type="text" id="export-name" placeholder="My HKUST-1 model" spellcheck="false">
-            </div>
-            <div class="mdl-f">
-                <button class="btn" onclick="closeModals()">Cancel</button>
-                <button class="btn primary" onclick="doExport()">Download .json</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Import Modal -->
-    <div class="modal-bg" id="modal-import">
-        <div class="mdl">
-            <div class="mdl-h">
-                <h3>Import structure</h3><button onclick="closeModals()">×</button>
-            </div>
-            <div class="mdl-b">
-                <p>Select a previously exported .json file to load.</p>
-                <button class="btn primary" onclick="document.getElementById('file-input').click()">Browse local
-                    file...</button>
-                <input type="file" id="file-input" accept=".json">
-
-                <div id="import-saved-section" style="margin-top:16px">
-                    <div class="lbl">Saved in browser</div>
-                    <div class="saved-list" id="saved-list"></div>
-                </div>
-            </div>
-            <div class="mdl-f">
-                <span class="status" id="import-status"></span>
-                <button class="btn" onclick="closeModals()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom element modal -->
-    <div class="modal-bg" id="modal-elem">
-        <div class="mdl">
-            <div class="mdl-h">
-                <h3>Add custom element</h3><button onclick="closeModals()">×</button>
-            </div>
-            <div class="mdl-b">
-                <p>Enter element details to add to your palette.</p>
-                <div class="custom-row"><input type="text" id="ce-sym" placeholder="Symbol (e.g. Zn)"
-                        maxlength="3"><input type="text" id="ce-name" placeholder="Name (e.g. Zinc)"></div>
-                <div class="custom-row"><input type="color" id="ce-col" value="#5B8C5A"
-                        style="width:40px;height:32px;border-radius:6px"><input type="number" id="ce-rad"
-                        placeholder="Radius (px, e.g. 8)" min="3" max="20" step="0.5" value="7"></div>
-            </div>
-            <div class="mdl-f">
-                <button class="btn" onclick="closeModals()">Cancel</button>
-                <button class="btn primary" onclick="addCustomElem()">Add element</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
         /* ========== CORE ========== */
         const canvas = document.getElementById('mol'), ctx = canvas.getContext('2d'), tip = document.getElementById('tip');
-        const dpr = window.devicePixelRatio || 1, dark = matchMedia('(prefers-color-scheme:dark)').matches;
-        function resize() { const w = canvas.clientWidth; canvas.width = w * dpr; canvas.height = 580 * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0) }
+        const dpr = window.devicePixelRatio || 1;
+        let dark = matchMedia('(prefers-color-scheme:dark)').matches;
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+
+        function toggleTheme() {
+            dark = !dark;
+            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+            draw();
+        }
+        function resize() { 
+            const parent = canvas.parentElement;
+            const w = parent.clientWidth; 
+            const h = parent.clientHeight;
+            canvas.width = w * dpr; 
+            canvas.height = h * dpr; 
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
         resize(); window.addEventListener('resize', () => { resize(); draw() });
 
         /* ========== GLOBAL HELPERS ========== */
@@ -1024,6 +68,7 @@
             bonds = JSON.parse(JSON.stringify(state.bonds));
             customGroups = JSON.parse(JSON.stringify(state.customGroups));
             aid = state.aid;
+            rebuildAtomMap();
 
             editSelected = []; selectedAtoms = []; bondSelection = [];
             addSourceAtom = null; currentAxes = [];
@@ -1055,11 +100,30 @@
 
         /* ========== ATOMS & BONDS ========== */
         let atoms = [], bonds = [], aid = 0;
-        function A(x, y, z, t, role, plane) { atoms.push({ x, y, z, t, role: role || t, plane: plane || '', id: aid++ }); return aid - 1 }
-        function B(a, b, d) { bonds.push({ a, b, dashed: !!d }) }
+
+        // ---- Fast O(1) atom lookup by id ----
+        let atomById = new Map();
+        let structureVersion = 0; // incremented whenever atoms/bonds change
+
+        function rebuildAtomMap() {
+            atomById.clear();
+            atoms.forEach(a => atomById.set(a.id, a));
+            structureVersion++;
+            drawGroupsCache = null; // invalidate polyhedra cache
+        }
+
+        function A(x, y, z, t, role, plane) {
+            const atom = { x, y, z, t, role: role || t, plane: plane || '', id: aid++ };
+            atoms.push(atom);
+            atomById.set(atom.id, atom);
+            structureVersion++;
+            drawGroupsCache = null;
+            return aid - 1;
+        }
+        function B(a, b, d) { bonds.push({ a, b, dashed: !!d }); structureVersion++; drawGroupsCache = null; }
 
         function buildDefault() {
-            atoms = []; bonds = []; aid = 0;
+            atoms = []; bonds = []; aid = 0; atomById = new Map(); structureVersion++; drawGroupsCache = null;
             const CuCu = 1.31;
             const cu1 = A(0, 0, CuCu, 'Cu', 'Cu', 'cu-o'), cu2 = A(0, 0, -CuCu, 'Cu', 'Cu', 'cu-o'); B(cu1, cu2, true);
             [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => {
@@ -1084,9 +148,12 @@
         /* ========== STATE & MODES ========== */
         let currentMode = 'view';
         let addSubMode = 'add';
+        let autoRelax = false;
 
         let angleY = 35 * Math.PI / 180, angleX = 20 * Math.PI / 180, zoomVal = 72, atomScale = 1, autoRotate = true, showBonds = true, showLabels = false, faceAlpha = .18, snapEnabled = true;
         let activePlane = 'none', dragging = false, lastMX, lastMY;
+        let fogEnabled = false;
+        let supercellEnabled = false, supercellNx = 2, supercellNy = 2, supercellNz = 1;
 
         // Real-time tracking for Multi-HUD
         let currentMX = -1000, currentMY = -1000;
@@ -1103,6 +170,7 @@
 
         let addElement = 'Cu';
         let addSourceAtom = null;
+        let activeSnapGuides = [];
 
         let customGroups = [];
         const PCOLORS = ['#D85A30', '#1D9E75', '#D4537E', '#BA7517', '#534AB7', '#E24B4A', '#378ADD'];
@@ -1111,20 +179,53 @@
         let currentAxes = [], hoveredAxisIdx = -1;
         const AXIS_COLORS = ['#E24B4A', '#1D9E75', '#3B6EE6', '#BA7517', '#7B5EC6', '#D4537E'];
 
-        window.setMode = function (m) {
-            currentMode = m;
-
+        window.setMode = function(m) {
+            currentMode = m; autoRotate = false; document.getElementById('autoRot').checked = false;
+            
             editSelected = []; selectedAtoms = []; bondSelection = [];
             currentAxes = []; hoveredAxisIdx = -1; addSourceAtom = null; hoveredAtom = null; hoveredBond = -1;
             if (editDragging) { editDragging = false; canvas.style.cursor = 'grab'; }
+            
+            const isView = (m === 'view');
 
-            document.getElementById('btn-view').className = 'btn' + (m === 'view' ? ' on on-view' : '');
-            document.getElementById('btn-move').className = 'btn' + (m === 'move' ? ' on on-red' : '');
-            document.getElementById('btn-poly').className = 'btn' + (m === 'poly' ? ' on on-purple' : '');
-            document.getElementById('btn-add').className = 'btn' + (m === 'add' ? ' on on-green' : '');
+            const tabToolsBtn = document.getElementById('tab-btn-tools');
+            if (isView) {
+                tabToolsBtn.classList.add('ui-hidden');
+                // Auto switch to View Settings tab when entering view mode
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                document.getElementById('tab-btn-view').classList.add('active');
+                document.getElementById('tp-view').classList.add('active');
+                
+                // Show Edit mode entry button in View Settings
+                const returnBtn = document.getElementById('btn-view-only-mode');
+                if (returnBtn) {
+                    returnBtn.innerHTML = '<b>[E]</b> Return to Move Mode';
+                    returnBtn.setAttribute('onclick', "setMode('move')");
+                }
+            } else {
+                tabToolsBtn.classList.remove('ui-hidden');
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                tabToolsBtn.classList.add('active');
+                document.getElementById('tp-tools').classList.add('active');
+                
+                // Keep the button functional just in case visible
+                const returnBtn = document.getElementById('btn-view-only-mode');
+                if (returnBtn) {
+                    returnBtn.innerHTML = '<b>[V]</b> Return to View Only Mode';
+                    returnBtn.setAttribute('onclick', "setMode('view')");
+                }
+            }
+
+            document.getElementById('btn-view').className = 'btn' + (m === 'view' ? ' on on-view selected' : '');
+            document.getElementById('btn-move').className = 'btn' + (m === 'move' ? ' on on-edit' : '');
+            document.getElementById('btn-poly').className = 'btn' + (m === 'poly' ? ' on on-poly' : '');
+            document.getElementById('btn-add').className = 'btn' + (m === 'add' ? ' on on-add' : '');
             document.getElementById('btn-bonds').className = 'btn' + (m === 'bonds' ? ' on on-amber' : '');
 
             document.getElementById('add-panel').style.display = (m === 'add') ? 'block' : 'none';
+            document.getElementById('move-panel').style.display = (m === 'move') ? 'block' : 'none';
             if (m === 'add') buildElemPalette();
 
             updateSelUI(); updateUIHints(); updateModePill(); draw();
@@ -1152,6 +253,7 @@
             atoms = atoms.filter(a => a.id !== id);
             bonds = bonds.filter(b => b.a !== id && b.b !== id);
             customGroups = customGroups.map(cg => ({ ...cg, ids: cg.ids.filter(i => i !== id) })).filter(cg => cg.ids.length >= 3);
+            rebuildAtomMap();
 
             if (editSelected.includes(id)) editSelected = editSelected.filter(i => i !== id);
             if (selectedAtoms.includes(id)) selectedAtoms = selectedAtoms.filter(i => i !== id);
@@ -1167,7 +269,7 @@
             let x1 = x * Math.cos(angleY) - z * Math.sin(angleY), z1 = x * Math.sin(angleY) + z * Math.cos(angleY), y1 = y;
             let y2 = y1 * Math.cos(angleX) - z1 * Math.sin(angleX), z2 = y1 * Math.sin(angleX) + z1 * Math.cos(angleX);
             const per = 14, ps = per / (per + z2), s = zoomVal * 1.15;
-            return { sx: canvas.clientWidth / 2 + x1 * s * ps, sy: 290 - y2 * s * ps, sz: z2, ps }
+            return { sx: canvas.clientWidth / 2 + x1 * s * ps, sy: canvas.clientHeight / 2 - y2 * s * ps, sz: z2, ps }
         }
         function v3sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
         function v3add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]] }
@@ -1189,33 +291,160 @@
         }
 
         /* ========== GEOMETRY ========== */
-        function areCoplanar(ids) { if (ids.length <= 3) return true; const pts = ids.map(id => [atoms.find(a => a.id === id).x, atoms.find(a => a.id === id).y, atoms.find(a => a.id === id).z]); const cr = v3cross(v3sub(pts[1], pts[0]), v3sub(pts[2], pts[0])); if (v3len(cr) < 1e-9) return true; const n = v3norm(cr); for (let i = 3; i < pts.length; i++) { if (Math.abs(v3dot(n, v3sub(pts[i], pts[0]))) > .08) return false } return true }
+        // Use atomById Map (O(1)) everywhere instead of atoms.find (O(n))
+        function getAtom(id) { return atomById.get(id); }
+
+        function areCoplanar(ids) {
+            if (ids.length <= 3) return true;
+            const pts = ids.map(id => { const a = getAtom(id); return [a.x, a.y, a.z]; });
+            const cr = v3cross(v3sub(pts[1], pts[0]), v3sub(pts[2], pts[0]));
+            if (v3len(cr) < 1e-9) return true;
+            const n = v3norm(cr);
+            for (let i = 3; i < pts.length; i++) { if (Math.abs(v3dot(n, v3sub(pts[i], pts[0]))) > .08) return false; }
+            return true;
+        }
         function triangulatePlanar(ids) {
             if (ids.length <= 3) return [ids.slice()];
-            const pts = ids.map(id => { const a = atoms.find(x => x.id === id); return [a.x, a.y, a.z] });
-            const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2] }
+            const pts = ids.map(id => { const a = getAtom(id); return [a.x, a.y, a.z]; });
+            const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
             c[0] /= pts.length; c[1] /= pts.length; c[2] /= pts.length;
             let bU = null, bV = null, nm = null;
-            for (let i = 0; i < pts.length && !bV; i++)for (let j = i + 1; j < pts.length && !bV; j++) { const d = v3sub(pts[j], pts[i]); if (!bU && v3len(d) > 1e-9) { bU = v3norm(d); continue } if (bU) { const cr = v3cross(bU, v3sub(pts[j], pts[i])); if (v3len(cr) > 1e-9) { nm = v3norm(cr); bV = v3norm(v3cross(nm, bU)); break } } }
+            for (let i = 0; i < pts.length && !bV; i++) for (let j = i + 1; j < pts.length && !bV; j++) { const d = v3sub(pts[j], pts[i]); if (!bU && v3len(d) > 1e-9) { bU = v3norm(d); continue; } if (bU) { const cr = v3cross(bU, v3sub(pts[j], pts[i])); if (v3len(cr) > 1e-9) { nm = v3norm(cr); bV = v3norm(v3cross(nm, bU)); break; } } }
             if (!bV) return [orderFace3D(ids)];
-            const co = pts.map(p => { const d = v3sub(p, c); return [v3dot(d, bU), v3dot(d, bV)] });
-            function hull2D(n, xy) { if (n <= 2) return Array.from({ length: n }, (_, i) => i); let s = 0; for (let i = 1; i < n; i++) { const [sx, sy] = xy(i), [bx, by] = xy(s); if (sx < bx || (sx === bx && sy < by)) s = i } const h = []; let cur = s; do { h.push(cur); let nx = 0; for (let i = 0; i < n; i++) { if (i === cur) continue; if (nx === cur) { nx = i; continue } const [cx, cy] = xy(cur), [nxx, ny] = xy(nx), [ix, iy] = xy(i); const cr = (nxx - cx) * (iy - cy) - (ny - cy) * (ix - cx); if (cr < -1e-10) nx = i; else if (Math.abs(cr) < 1e-10) { if ((nxx - cx) ** 2 + (ny - cy) ** 2 < (ix - cx) ** 2 + (iy - cy) ** 2) nx = i } } cur = nx; if (h.length > n + 1) break } while (cur !== s); return h }
+            const co = pts.map(p => { const d = v3sub(p, c); return [v3dot(d, bU), v3dot(d, bV)]; });
+            function hull2D(n, xy) { if (n <= 2) return Array.from({ length: n }, (_, i) => i); let s = 0; for (let i = 1; i < n; i++) { const [sx, sy] = xy(i), [bx, by] = xy(s); if (sx < bx || (sx === bx && sy < by)) s = i; } const h = []; let cur = s; do { h.push(cur); let nx = 0; for (let i = 0; i < n; i++) { if (i === cur) continue; if (nx === cur) { nx = i; continue; } const [cx, cy] = xy(cur), [nxx, ny] = xy(nx), [ix, iy] = xy(i); const cr = (nxx - cx) * (iy - cy) - (ny - cy) * (ix - cx); if (cr < -1e-10) nx = i; else if (Math.abs(cr) < 1e-10) { if ((nxx - cx) ** 2 + (ny - cy) ** 2 < (ix - cx) ** 2 + (iy - cy) ** 2) nx = i; } } cur = nx; if (h.length > n + 1) break; } while (cur !== s); return h; }
             const hl = hull2D(ids.length, i => co[i]), hs = new Set(hl), ii = [];
-            for (let i = 0; i < ids.length; i++) { if (!hs.has(i)) ii.push(i) }
+            for (let i = 0; i < ids.length; i++) { if (!hs.has(i)) ii.push(i); }
             if (ii.length === 0) return [hl.map(i => ids[i])];
             const faces = [];
-            if (ii.length === 1) { const ip = ii[0]; for (let i = 0; i < hl.length; i++) { const j = (i + 1) % hl.length; faces.push([ids[ip], ids[hl[i]], ids[hl[j]]]) } return faces }
+            if (ii.length === 1) { const ip = ii[0]; for (let i = 0; i < hl.length; i++) { const j = (i + 1) % hl.length; faces.push([ids[ip], ids[hl[i]], ids[hl[j]]]);} return faces; }
             const ip = ii[0], ipx = co[ip][0], ipy = co[ip][1], ot = [];
-            for (let i = 0; i < ids.length; i++) { if (i !== ip) ot.push(i) }
+            for (let i = 0; i < ids.length; i++) { if (i !== ip) ot.push(i); }
             ot.sort((a, b) => Math.atan2(co[a][1] - ipy, co[a][0] - ipx) - Math.atan2(co[b][1] - ipy, co[b][0] - ipx));
-            for (let i = 0; i < ot.length; i++) { const j = (i + 1) % ot.length; faces.push([ids[ip], ids[ot[i]], ids[ot[j]]]) }
-            return faces
+            for (let i = 0; i < ot.length; i++) { const j = (i + 1) % ot.length; faces.push([ids[ip], ids[ot[i]], ids[ot[j]]]);}
+            return faces;
         }
-        function orderFace3D(ids) { if (ids.length <= 2) return ids; const pts = ids.map(id => { const a = atoms.find(x => x.id === id); return [a.x, a.y, a.z] }); const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2] } c[0] /= pts.length; c[1] /= pts.length; c[2] /= pts.length; const v1 = v3norm(v3sub(pts[0], c)); const raw = v3sub(pts[1], c); const n = v3norm(v3cross(v1, raw)); const v2 = v3cross(n, v1); const angles = ids.map((id, i) => { const d = v3sub(pts[i], c); return { id, ang: Math.atan2(v3dot(d, v2), v3dot(d, v1)) } }); angles.sort((a, b) => a.ang - b.ang); return angles.map(a => a.id) }
-        function convexHull3DFaces(ids) { const pts = ids.map(id => { const a = atoms.find(x => x.id === id); return [a.x, a.y, a.z] }); const n = pts.length; if (n < 4) return [ids.slice()]; const faces = []; const ct = [0, 0, 0]; for (const p of pts) { ct[0] += p[0]; ct[1] += p[1]; ct[2] += p[2] } ct[0] /= n; ct[1] /= n; ct[2] /= n; for (let i = 0; i < n; i++)for (let j = i + 1; j < n; j++)for (let k = j + 1; k < n; k++) { const v1 = v3sub(pts[j], pts[i]), v2 = v3sub(pts[k], pts[i]); const nm = v3cross(v1, v2); if (v3len(nm) < 1e-9) continue; const nn = v3norm(nm); const d = v3dot(nn, pts[i]); let ab = 0, bl = 0; const on = []; for (let m = 0; m < n; m++) { const val = v3dot(nn, pts[m]) - d; if (Math.abs(val) < .05) on.push(m); else if (val > 0) ab++; else bl++ } if (ab === 0 || bl === 0) { const fi = on.map(m => ids[m]); let dom = false; for (let f = faces.length - 1; f >= 0; f--) { const ex = new Set(faces[f]), nw = new Set(fi); if (fi.every(id => ex.has(id))) { dom = true; break } if (faces[f].every(id => nw.has(id))) faces.splice(f, 1) } if (!dom) { const fc = [0, 0, 0]; for (const id of fi) { const a = atoms.find(x => x.id === id); fc[0] += a.x; fc[1] += a.y; fc[2] += a.z } fc[0] /= fi.length; fc[1] /= fi.length; fc[2] /= fi.length; const a0 = atoms.find(x => x.id === fi[0]); const u = v3norm(v3sub([a0.x, a0.y, a0.z], fc)); const w = v3norm(v3cross(nn, u)); fi.sort((a, b) => { const aA = atoms.find(x => x.id === a), aB = atoms.find(x => x.id === b); const da = v3sub([aA.x, aA.y, aA.z], fc); const db = v3sub([aB.x, aB.y, aB.z], fc); return Math.atan2(v3dot(da, w), v3dot(da, u)) - Math.atan2(v3dot(db, w), v3dot(db, u)) }); faces.push(fi) } } } return faces.length ? faces : [ids.slice()] }
-        function decomposeFaces(ids) { if (ids.length < 3) return []; if (ids.length === 3) return [ids.slice()]; if (areCoplanar(ids)) return triangulatePlanar(ids); return convexHull3DFaces(ids) }
-        function collectEdges(faces) { const es = new Set(), ed = []; faces.forEach(f => { for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length]; const k = Math.min(a, b) + '-' + Math.max(a, b); if (!es.has(k)) { es.add(k); ed.push([a, b]) } } }); return ed }
-        function getAllDrawGroups() { const g = []; if (activePlane !== 'none') { const ids = []; atoms.forEach(a => { if (a.plane === activePlane) ids.push(a.id) }); if (ids.length >= 3) { const f = decomposeFaces(ids); g.push({ faces: f, edges: collectEdges(f), ids, color: PRESET_COL[activePlane] }) } } customGroups.forEach(cg => { const f = decomposeFaces(cg.ids); g.push({ faces: f, edges: collectEdges(f), ids: cg.ids, color: cg.color }) }); return g }
+        function orderFace3D(ids) {
+            if (ids.length <= 2) return ids;
+            const pts = ids.map(id => { const a = getAtom(id); return [a.x, a.y, a.z]; });
+            const c = [0, 0, 0]; for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
+            c[0] /= pts.length; c[1] /= pts.length; c[2] /= pts.length;
+            const v1 = v3norm(v3sub(pts[0], c)); const raw = v3sub(pts[1], c);
+            const n = v3norm(v3cross(v1, raw)); const v2 = v3cross(n, v1);
+            const angles = ids.map((id, i) => { const d = v3sub(pts[i], c); return { id, ang: Math.atan2(v3dot(d, v2), v3dot(d, v1)) }; });
+            angles.sort((a, b) => a.ang - b.ang); return angles.map(a => a.id);
+        }
+        function convexHull3DFaces(ids) {
+            const pts = ids.map(id => { const a = getAtom(id); return [a.x, a.y, a.z]; });
+            const n = pts.length; if (n < 4) return [ids.slice()];
+            const faces = []; const ct = [0, 0, 0];
+            for (const p of pts) { ct[0] += p[0]; ct[1] += p[1]; ct[2] += p[2]; }
+            ct[0] /= n; ct[1] /= n; ct[2] /= n;
+            for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+                const v1 = v3sub(pts[j], pts[i]), v2 = v3sub(pts[k], pts[i]);
+                const nm = v3cross(v1, v2); if (v3len(nm) < 1e-9) continue;
+                const nn = v3norm(nm); const d = v3dot(nn, pts[i]);
+                let ab = 0, bl = 0; const on = [];
+                for (let m = 0; m < n; m++) { const val = v3dot(nn, pts[m]) - d; if (Math.abs(val) < .05) on.push(m); else if (val > 0) ab++; else bl++; }
+                if (ab === 0 || bl === 0) {
+                    const fi = on.map(m => ids[m]); let dom = false;
+                    for (let f = faces.length - 1; f >= 0; f--) {
+                        const ex = new Set(faces[f]), nw = new Set(fi);
+                        if (fi.every(id => ex.has(id))) { dom = true; break; }
+                        if (faces[f].every(id => nw.has(id))) faces.splice(f, 1);
+                    }
+                    if (!dom) {
+                        const fc = [0, 0, 0];
+                        for (const id of fi) { const a = getAtom(id); fc[0] += a.x; fc[1] += a.y; fc[2] += a.z; }
+                        fc[0] /= fi.length; fc[1] /= fi.length; fc[2] /= fi.length;
+                        const a0 = getAtom(fi[0]);
+                        const u = v3norm(v3sub([a0.x, a0.y, a0.z], fc));
+                        const w = v3norm(v3cross(nn, u));
+                        fi.sort((a, b) => {
+                            const aA = getAtom(a), aB = getAtom(b);
+                            const da = v3sub([aA.x, aA.y, aA.z], fc);
+                            const db = v3sub([aB.x, aB.y, aB.z], fc);
+                            return Math.atan2(v3dot(da, w), v3dot(da, u)) - Math.atan2(v3dot(db, w), v3dot(db, u));
+                        });
+                        faces.push(fi);
+                    }
+                }
+            }
+            return faces.length ? faces : [ids.slice()];
+        }
+        function decomposeFaces(ids) { if (ids.length < 3) return []; if (ids.length === 3) return [ids.slice()]; if (areCoplanar(ids)) return triangulatePlanar(ids); return convexHull3DFaces(ids); }
+        function collectEdges(faces) { const es = new Set(), ed = []; faces.forEach(f => { for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length]; const k = Math.min(a, b) + '-' + Math.max(a, b); if (!es.has(k)) { es.add(k); ed.push([a, b]); } } }); return ed; }
+
+        // Element → preset plane fallback for CIF atoms that have plane:""
+        const ELEM_PLANE_FALLBACK = { Cu: 'cu-o', O: 'cu-o', C: 'carb' };
+        // Override: aromatic-ring C that is bonded only to C atoms → 'ring'
+        function planeOf(atom) {
+            if (atom.plane) return atom.plane;
+            // CIF fallback: distinguish carboxylate C from ring C via bond graph
+            if (atom.t === 'C') {
+                const nbrs = getNeighbors(atom.id);
+                const hasO = nbrs.some(nid => { const n = getAtom(nid); return n && n.t === 'O'; });
+                return hasO ? 'carb' : 'ring';
+            }
+            return ELEM_PLANE_FALLBACK[atom.t] || '';
+        }
+
+        function getPlaneGroups(plane) {
+            // Build adjacency list once for speed
+            const adj = new Map();
+            atoms.forEach(a => adj.set(a.id, []));
+            bonds.forEach(b => { adj.get(b.a)?.push(b.b); adj.get(b.b)?.push(b.a); });
+
+            const planeIds = new Set();
+            atoms.forEach(a => { if (planeOf(a) === plane) planeIds.add(a.id); });
+
+            const visited = new Set(), clusters = [];
+            planeIds.forEach(id => {
+                if (visited.has(id)) return;
+                const cluster = [], queue = [id]; visited.add(id);
+                while (queue.length) {
+                    const cur = queue.shift(); cluster.push(cur);
+                    adj.get(cur)?.forEach(nb => {
+                        if (planeIds.has(nb) && !visited.has(nb)) { visited.add(nb); queue.push(nb); }
+                    });
+                }
+                if (cluster.length >= 3) clusters.push(cluster);
+            });
+            return clusters;
+        }
+
+        // ---- Draw-group cache (invalidated by structureVersion or activePlane change) ----
+        let drawGroupsCache = null;
+        let drawGroupsCacheVersion = -1;
+        let drawGroupsCachePlane = null;
+        let drawGroupsCacheCustomLen = -1;
+
+        function getAllDrawGroups() {
+            const customKey = customGroups.length;
+            if (drawGroupsCache !== null &&
+                drawGroupsCacheVersion === structureVersion &&
+                drawGroupsCachePlane === activePlane &&
+                drawGroupsCacheCustomLen === customKey) {
+                return drawGroupsCache;
+            }
+            const g = [];
+            if (activePlane !== 'none') {
+                const color = PRESET_COL[activePlane] || '#888888';
+                getPlaneGroups(activePlane).forEach(ids => {
+                    const f = decomposeFaces(ids);
+                    g.push({ faces: f, edges: collectEdges(f), ids, color });
+                });
+            }
+            customGroups.forEach(cg => {
+                const f = decomposeFaces(cg.ids);
+                g.push({ faces: f, edges: collectEdges(f), ids: cg.ids, color: cg.color });
+            });
+            drawGroupsCache = g;
+            drawGroupsCacheVersion = structureVersion;
+            drawGroupsCachePlane = activePlane;
+            drawGroupsCacheCustomLen = customKey;
+            return g;
+        }
         function describeGeom(ids) { if (ids.length < 3) return ''; if (areCoplanar(ids)) { const f = triangulatePlanar(ids); if (f.length === 1 && f[0].length === ids.length) { if (ids.length === 3) return 'Triangle'; if (ids.length === 4) return 'Quadrilateral'; return ids.length + '-gon' } return f.length + ' triangular faces, ' + ids.length + ' vtx' } const f = convexHull3DFaces(ids); const v = ids.length, fc = f.length; if (v === 4 && fc === 4) return 'Tetrahedron'; if (v === 5 && fc === 5) return 'Sq. pyramid'; if (v === 6 && fc === 8) return 'Octahedron'; if (v === 8 && fc === 6) return 'Cube'; return fc + '-face polyhedron' }
 
         /* ========== EDIT AXES & GRAPH ========== */
@@ -1325,47 +554,88 @@
             return filtered;
         }
 
-        function trySnap(movingId, pos, axis) {
+        function trySnap(movingId, pos, axDir) {
             if (!snapEnabled) return { pos, snapped: false };
             const THRESH = 0.15;
             const nbrs = getNeighbors(movingId);
-            let bestDist = THRESH, snapVal = null, snapAxis = null, snapLabel = '';
+            let bestDist = THRESH, snapVal = null, snapAxis = null, snapLabel = '', snapGuide = null;
 
             ['x', 'y', 'z'].forEach((ax, i) => {
-                if (Math.abs(pos[i]) < THRESH && Math.abs(pos[i]) < bestDist) {
-                    bestDist = Math.abs(pos[i]); snapVal = 0; snapAxis = i; snapLabel = ax + '=0 plane';
-                }
+                if (!axDir || Math.abs(axDir[i]) < 0.01) return; // avoid division by zero & only snap if movement aligns with axis
+
+                const checkSnap = (target, label, targetPos) => {
+                    const diff = target - pos[i];
+                    // The Euclidean distance to the plane:
+                    const distToPlane = Math.abs(diff); 
+
+                    if (distToPlane < THRESH && distToPlane < bestDist) {
+                        bestDist = distToPlane;
+                        snapAxis = i; 
+                        snapLabel = label;
+                        let p2 = [...pos]; p2[i] = target; 
+                        snapGuide = [pos, targetPos || p2];
+                        snapVal = diff; // store diff to shift pos along axDir correctly
+                    }
+                };
+
+                checkSnap(0, ax + '=0 plane');
                 nbrs.forEach(nid => {
                     const n = atoms.find(x => x.id === nid); if (!n) return;
-                    const d = Math.abs(pos[i] - n[ax]);
-                    if (d < THRESH && d < bestDist) { bestDist = d; snapVal = n[ax]; snapAxis = i; snapLabel = 'coplanar with ' + n.t + '#' + nid; }
+                    checkSnap(n[ax], 'coplanar with ' + n.t + '#' + nid, [n.x, n.y, n.z]);
                     getNeighbors(nid).filter(id => id !== movingId).forEach(nnid => {
                         const nn = atoms.find(x => x.id === nnid); if (!nn) return;
-                        const d2 = Math.abs(pos[i] - nn[ax]);
-                        if (d2 < THRESH && d2 < bestDist) { bestDist = d2; snapVal = nn[ax]; snapAxis = i; snapLabel = 'aligned with ' + nn.t + '#' + nnid; }
+                        checkSnap(nn[ax], 'aligned with ' + nn.t + '#' + nnid, [nn.x, nn.y, nn.z]);
                     });
                 });
             });
 
             if (snapAxis != null) {
-                const snapped = [...pos];
-                snapped[snapAxis] = snapVal;
-                return { pos: snapped, snapped: true, label: snapLabel };
+                // Apply the shift strictly along axDir
+                const deltaT = snapVal / axDir[snapAxis];
+                const snapped = [pos[0] + axDir[0]*deltaT, pos[1] + axDir[1]*deltaT, pos[2] + axDir[2]*deltaT];
+                if (snapGuide) snapGuide[0] = snapped;
+                return { pos: snapped, snapped: true, label: snapLabel, guide: snapGuide };
             }
             return { pos, snapped: false };
         }
 
+        /* ========== SUPERCELL ========== */
+        function getLatticeVectors() {
+            if (!atoms.length) return { ax: 10, ay: 10, az: 6 };
+            let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+            atoms.forEach(a => {
+                x0 = Math.min(x0, a.x); x1 = Math.max(x1, a.x);
+                y0 = Math.min(y0, a.y); y1 = Math.max(y1, a.y);
+                z0 = Math.min(z0, a.z); z1 = Math.max(z1, a.z);
+            });
+            return { ax: x1 - x0 + 1.5, ay: y1 - y0 + 1.5, az: z1 - z0 + 1.5 };
+        }
+
         /* ========== DRAW ========== */
         function draw() {
-            const w = canvas.clientWidth, h = 580; ctx.clearRect(0, 0, w, h);
+            const w = canvas.parentElement.clientWidth, h = canvas.parentElement.clientHeight; 
+            ctx.clearRect(0, 0, w, h);
 
-            const projMap = {};
+            spatialGrid.clear();
+            globalProjMap = {};
+            const projMap = globalProjMap; // alias for existing code
             const proj = atoms.map((a, i) => {
                 const p = project(a.x, a.y, a.z);
                 const mapped = { ...a, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps, arrIndex: i };
                 projMap[a.id] = mapped;
+                
+                const k = getGridKey(mapped.sx, mapped.sy);
+                if (!spatialGrid.has(k)) spatialGrid.set(k, { atoms: [], bonds: [] });
+                spatialGrid.get(k).atoms.push(mapped);
+                
                 return mapped;
             });
+
+            // Depth range for fog
+            let minSz = Infinity, maxSz = -Infinity;
+            proj.forEach(p => { if (p.sz < minSz) minSz = p.sz; if (p.sz > maxSz) maxSz = p.sz; });
+            if (!isFinite(minSz)) { minSz = -5; maxSz = 5; }
+            const szRange = Math.max(maxSz - minSz, 0.01);
 
             const groups = getAllDrawGroups();
             const anyGroup = groups.length > 0;
@@ -1394,6 +664,19 @@
                 const a1 = projMap[b.a], a2 = projMap[b.b];
                 if (!a1 || !a2) return;
                 drawList.push({ type: 'bond', z: (a1.sz + a2.sz) / 2, a1, a2, dashed: b.dashed, isCu: a1.t === 'Cu' || a2.t === 'Cu', ai: b.a, bi: b.b, bIndex: i });
+                
+                const steps = 3;
+                let lastK = '';
+                for (let s=0; s<=steps; s++) {
+                    const bx = a1.sx + (a2.sx - a1.sx) * (s/steps);
+                    const by = a1.sy + (a2.sy - a1.sy) * (s/steps);
+                    const k = getGridKey(bx, by);
+                    if (k !== lastK) {
+                        if (!spatialGrid.has(k)) spatialGrid.set(k, { atoms: [], bonds: [] });
+                        spatialGrid.get(k).bonds.push({b: b, i: i});
+                        lastK = k;
+                    }
+                }
             });
 
             proj.forEach((a, i) => drawList.push({ type: 'atom', z: a.sz, a, i }));
@@ -1412,6 +695,44 @@
                 });
             }
 
+            if (currentMode === 'add' && addSubMode === 'add' && addSourceAtom !== null && currentAxes.length > 0 && hoveredAxisIdx >= 0) {
+                const ax = currentAxes[hoveredAxisIdx];
+                const gpos = v3add(ax.origin, v3scale(ax.dir, 1.4));
+                const p = project(gpos[0], gpos[1], gpos[2]);
+                drawList.push({ type: 'ghost', z: p.sz, a: { t: addElement, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps } });
+            }
+
+            activeSnapGuides.forEach(g => {
+                if (!g || g.length < 2) return;
+                const p1 = project(g[0][0], g[0][1], g[0][2]);
+                const p2 = project(g[1][0], g[1][1], g[1][2]);
+                drawList.push({ type: 'guide', z: (p1.sz + p2.sz) / 2, p1, p2 });
+            });
+
+            // Supercell ghost copies
+            if (supercellEnabled) {
+                const lv = getLatticeVectors();
+                for (let i = 0; i < supercellNx; i++) {
+                    for (let j = 0; j < supercellNy; j++) {
+                        for (let k = 0; k < supercellNz; k++) {
+                            if (i === 0 && j === 0 && k === 0) continue;
+                            const ox = i * lv.ax, oy = j * lv.ay, oz = k * lv.az;
+                            atoms.forEach(a => {
+                                const p = project(a.x + ox, a.y + oy, a.z + oz);
+                                drawList.push({ type: 'sc_atom', z: p.sz, a: { t: a.t, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps } });
+                            });
+                            if (showBonds) bonds.forEach(b => {
+                                const aA = atoms.find(x => x.id === b.a), aB = atoms.find(x => x.id === b.b);
+                                if (!aA || !aB) return;
+                                const p1 = project(aA.x + ox, aA.y + oy, aA.z + oz);
+                                const p2 = project(aB.x + ox, aB.y + oy, aB.z + oz);
+                                drawList.push({ type: 'sc_bond', z: (p1.sz + p2.sz) / 2, p1, p2, dashed: b.dashed, isCu: aA.t === 'Cu' || aB.t === 'Cu' });
+                            });
+                        }
+                    }
+                }
+            }
+
             drawList.sort((a, b) => a.z - b.z);
 
             drawList.forEach(d => {
@@ -1420,23 +741,25 @@
                 if (d.type === 'vtx') { const p = projMap[d.id]; const [r, g, b] = hexRgb(d.color); ctx.beginPath(); ctx.arc(p.sx, p.sy, 3.5, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${dark ? .8 : .65})`; ctx.fill() }
                 if (d.type === 'prevface') { const pts = d.fIds.map(id => ({ sx: projMap[id].sx, sy: projMap[id].sy })); ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy) }); ctx.closePath(); ctx.fillStyle = 'rgba(123,94,198,.1)'; ctx.fill(); ctx.restore() }
                 if (d.type === 'prevedge') { const p1 = d.p1, p2 = d.p2; ctx.save(); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = 'rgba(123,94,198,.4)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.restore() }
+                if (d.type === 'guide') { const p1 = d.p1, p2 = d.p2; ctx.save(); ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = varColor('--amber'); ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); ctx.restore() }
                 if (d.type === 'bond') {
                     const { a1, a2, dashed, isCu, ai, bi, bIndex } = d; ctx.beginPath(); if (dashed) ctx.setLineDash([3, 4]); else ctx.setLineDash([]);
                     ctx.moveTo(a1.sx, a1.sy); ctx.lineTo(a2.sx, a2.sy);
                     const dim = anyGroup && !groupAtomSet.has(ai) && !groupAtomSet.has(bi);
                     const isHovered = (hoveredBond === bIndex);
-                    let bc = getCOL(isCu ? 'Cu' : 'C');
-
-                    ctx.strokeStyle = bc + (dim && !isHovered ? '22' : '77');
-                    if (isHovered) ctx.strokeStyle = varColor('--red');
-
+                    const fog = fogEnabled ? 0.15 + (((a1.sz + a2.sz) / 2 - minSz) / szRange) * 0.85 : 1;
+                    if (isHovered) {
+                        ctx.strokeStyle = varColor('--red');
+                    } else {
+                        const [brc, bgc, bbc] = hexRgb(getCOL(isCu ? 'Cu' : 'C'));
+                        ctx.strokeStyle = `rgba(${brc},${bgc},${bbc},${(dim ? 0.13 : 0.47) * fog})`;
+                    }
                     ctx.lineWidth = (isCu ? 2.5 : 1.8) * ((a1.ps + a2.ps) / 2);
                     if (isHovered) ctx.lineWidth += 1.5;
-
                     ctx.stroke(); ctx.setLineDash([]);
                 }
                 if (d.type === 'atom') {
-                    const { a } = d, col = getCOL(a.t), baseR = getRAD(a.t) * atomScale, r = baseR * a.ps * (zoomVal / 65);
+                    const { a } = d, col = getCOL(a.t), baseR = getRAD(a.t) * atomScale, r = Math.max(0.01, baseR * a.ps * (zoomVal / 65));
                     const dm = .7 + .3 * ((a.sz + 5) / 10), [cr, cg, cb] = hexRgb(col);
 
                     let isRotatingGroup = false;
@@ -1449,7 +772,9 @@
                     const isES = (currentMode === 'move' && editSelected.includes(a.id)) || (currentMode === 'add' && addSubMode === 'add' && addSourceAtom === a.id);
                     const isBondSel = (currentMode === 'bonds' && bondSelection.includes(a.id));
 
-                    ctx.save(); if (faded && !isES && !isBondSel && !isRotatingGroup) ctx.globalAlpha = .15;
+                    const fog = fogEnabled ? 0.15 + ((a.sz - minSz) / szRange) * 0.85 : 1;
+                    const baseAlpha = (faded && !isES && !isBondSel && !isRotatingGroup) ? 0.15 : 1;
+                    ctx.save(); ctx.globalAlpha = baseAlpha * fog;
                     const grad = ctx.createRadialGradient(a.sx - r * .3, a.sy - r * .3, r * .05, a.sx, a.sy, r);
                     grad.addColorStop(0, `rgb(${Math.min(255, cr + Math.round((255 - cr) * .5))},${Math.min(255, cg + Math.round((255 - cg) * .5))},${Math.min(255, cb + Math.round((255 - cb) * .5))})`);
                     grad.addColorStop(.5, `rgb(${Math.round(cr * dm)},${Math.round(cg * dm)},${Math.round(cb * dm)})`);
@@ -1472,6 +797,38 @@
                     else if (inF && anyGroup) { ctx.strokeStyle = dark ? 'rgba(255,255,255,.3)' : 'rgba(0,0,0,.18)'; ctx.lineWidth = 1.5; ctx.stroke() }
                     ctx.restore();
                     if (showLabels) { ctx.save(); ctx.font = '500 9px "DM Sans",sans-serif'; ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.5)'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(a.t, a.sx, a.sy - r - 2); ctx.restore() }
+                }
+                if (d.type === 'ghost') {
+                    const { a } = d, col = getCOL(a.t), baseR = getRAD(a.t) * atomScale, r = Math.max(0.01, baseR * a.ps * (zoomVal / 65));
+                    const [cr, cg, cb] = hexRgb(col);
+                    ctx.save(); ctx.globalAlpha = 0.4;
+                    ctx.beginPath(); ctx.arc(a.sx, a.sy, r, 0, Math.PI * 2); ctx.fillStyle = `rgb(${cr},${cg},${cb})`; ctx.fill();
+                    ctx.setLineDash([3,3]); ctx.strokeStyle = dark ? '#fff' : '#000'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.restore();
+                }
+                if (d.type === 'sc_atom') {
+                    const { a } = d;
+                    const scFog = fogEnabled ? 0.15 + ((a.sz - minSz) / szRange) * 0.85 : 1;
+                    const col = getCOL(a.t), baseR = getRAD(a.t) * atomScale, r = Math.max(0.01, baseR * a.ps * (zoomVal / 65));
+                    const [cr, cg, cb] = hexRgb(col);
+                    ctx.save(); ctx.globalAlpha = 0.32 * scFog;
+                    ctx.beginPath(); ctx.arc(a.sx, a.sy, r, 0, Math.PI * 2);
+                    const grad = ctx.createRadialGradient(a.sx - r * .3, a.sy - r * .3, r * .05, a.sx, a.sy, r);
+                    grad.addColorStop(0, `rgb(${Math.min(255, cr + Math.round((255 - cr) * .5))},${Math.min(255, cg + Math.round((255 - cg) * .5))},${Math.min(255, cb + Math.round((255 - cb) * .5))})`);
+                    grad.addColorStop(1, `rgb(${Math.round(cr * .5)},${Math.round(cg * .5)},${Math.round(cb * .5)})`);
+                    ctx.fillStyle = grad; ctx.fill();
+                    ctx.restore();
+                }
+                if (d.type === 'sc_bond') {
+                    const { p1, p2, dashed, isCu } = d;
+                    const scFog = fogEnabled ? 0.15 + (((p1.sz + p2.sz) / 2 - minSz) / szRange) * 0.85 : 1;
+                    ctx.save(); ctx.globalAlpha = 0.22 * scFog;
+                    if (dashed) ctx.setLineDash([3, 4]); else ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy);
+                    ctx.strokeStyle = dark ? '#888' : '#999';
+                    ctx.lineWidth = (isCu ? 2.5 : 1.8) * ((p1.ps + p2.ps) / 2);
+                    ctx.stroke(); ctx.setLineDash([]);
+                    ctx.restore();
                 }
             });
 
@@ -1610,17 +967,46 @@
             else if (currentMode === 'bonds') mt = 'Bonds: click two atoms to link/unlink';
 
             ctx.fillText(mt, w / 2, 34);
+
+            function drawWorldAxes() {
+                const cx = 60, cy = h - 60, size = 35;
+                const drawAxis = (x, y, z, col, label) => {
+                    let x1 = x * Math.cos(angleY) - z * Math.sin(angleY), z1 = x * Math.sin(angleY) + z * Math.cos(angleY), y1 = y;
+                    let y2 = y1 * Math.cos(angleX) - z1 * Math.sin(angleX);
+                    const ex = cx + x1 * size, ey = cy - y2 * size;
+                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+                    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+                    ctx.fillStyle = col; ctx.font = 'bold 12px var(--font)';
+                    ctx.fillText(label, ex + (x1>0?5:-12), ey + (y2>0?-5:12));
+                };
+                drawAxis(1, 0, 0, '#E24B4A', 'X'); 
+                drawAxis(0, 1, 0, '#1D9E75', 'Y'); 
+                drawAxis(0, 0, 1, '#3B6EE6', 'Z'); 
+            }
+            drawWorldAxes();
         }
 
-        /* ========== HIT TEST ========== */
+        /* ========== SPATIAL INDEXING & HIT TEST ========== */
+        let globalProjMap = {}, spatialGrid = new Map();
+        const GRID_SZ = 40;
+        function getGridKey(x, y) { return Math.floor(x / GRID_SZ) + ',' + Math.floor(y / GRID_SZ); }
+
         function hitTest(mx, my) {
-            const proj = atoms.map(a => { const p = project(a.x, a.y, a.z); return { ...a, sx: p.sx, sy: p.sy, sz: p.sz, ps: p.ps } });
-            const sorted = [...proj].sort((a, b) => b.sz - a.sz);
-            for (const a of sorted) {
-                const r = getRAD(a.t) * atomScale * a.ps * (zoomVal / 65);
-                if ((mx - a.sx) ** 2 + (my - a.sy) ** 2 <= r * r) return a;
+            let hit = null, bestZ = -Infinity;
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const key = Math.floor(mx / GRID_SZ + dx) + ',' + Math.floor(my / GRID_SZ + dy);
+                    const cell = spatialGrid.get(key);
+                    if (!cell) continue;
+                    for (const a of cell.atoms) {
+                        const r = getRAD(a.t) * atomScale * a.ps * (zoomVal / 65);
+                        if ((mx - a.sx) ** 2 + (my - a.sy) ** 2 <= r * r) {
+                            if (a.sz > bestZ) { bestZ = a.sz; hit = a; }
+                        }
+                    }
+                }
             }
-            return null;
+            return hit;
         }
 
         function hitAxisTest(mx, my) {
@@ -1645,23 +1031,26 @@
         function hitBondTest(mx, my) {
             let bestDist = 7;
             let hitIdx = -1;
-            const projMap = {};
-            atoms.forEach(a => { projMap[a.id] = project(a.x, a.y, a.z); });
-            bonds.forEach((b, i) => {
-                const p1 = projMap[b.a], p2 = projMap[b.b];
-                if (!p1 || !p2) return;
-                const l2 = (p1.sx - p2.sx) ** 2 + (p1.sy - p2.sy) ** 2;
-                if (l2 === 0) return;
-                let t = ((mx - p1.sx) * (p2.sx - p1.sx) + (my - p1.sy) * (p2.sy - p1.sy)) / l2;
-                t = Math.max(0, Math.min(1, t));
-                const px = p1.sx + t * (p2.sx - p1.sx);
-                const py = p1.sy + t * (p2.sy - p1.sy);
-                const dist = Math.sqrt((mx - px) ** 2 + (my - py) ** 2);
-                if (dist < bestDist) { bestDist = dist; hitIdx = i; }
-            });
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const key = Math.floor(mx / GRID_SZ + dx) + ',' + Math.floor(my / GRID_SZ + dy);
+                    const cell = spatialGrid.get(key);
+                    if (!cell) continue;
+                    for (const {b, i} of cell.bonds) {
+                        const p1 = globalProjMap[b.a], p2 = globalProjMap[b.b];
+                        if (!p1 || !p2) continue;
+                        const l2 = (p1.sx - p2.sx) ** 2 + (p1.sy - p2.sy) ** 2;
+                        if (l2 === 0) continue;
+                        let t = ((mx - p1.sx) * (p2.sx - p1.sx) + (my - p1.sy) * (p2.sy - p1.sy)) / l2;
+                        t = Math.max(0, Math.min(1, t));
+                        const px = p1.sx + t * (p2.sx - p1.sx), py = p1.sy + t * (p2.sy - p1.sy);
+                        const dist = Math.sqrt((mx - px) ** 2 + (my - py) ** 2);
+                        if (dist < bestDist) { bestDist = dist; hitIdx = i; }
+                    }
+                }
+            }
             return hitIdx;
         }
-
         /* ========== UI UPDATES ========== */
         function updateModePill() {
             const p = document.getElementById('mode-pill'), t = p.querySelector('.mode-text');
@@ -1736,7 +1125,33 @@
         }
 
         function updateLegend() { const el = document.getElementById('plegend'); if (!customGroups.length) { el.innerHTML = ''; return } el.innerHTML = customGroups.map((cg, i) => `<div class="pl-group"><span class="ps" style="background:${cg.color}33;border-color:${cg.color}"></span><span>${describeGeom(cg.ids)}</span><button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--txt3);padding:0" onclick="rmGroup(${i})">×</button></div>`).join('') }
-        function updateStats() { document.getElementById('s-natoms').textContent = atoms.length; document.getElementById('s-nbonds').textContent = bonds.length; const cu = atoms.filter(a => a.t === 'Cu'); if (cu.length >= 2) { document.getElementById('s-cucu').textContent = (v3dist([cu[0].x, cu[0].y, cu[0].z], [cu[1].x, cu[1].y, cu[1].z]) * 2).toFixed(2) + ' Å' } else document.getElementById('s-cucu').textContent = '—'; const cuO = []; bonds.forEach(b => { const aA = atoms.find(x => x.id === b.a), aB = atoms.find(x => x.id === b.b); if (!aA || !aB) return; if ((aA.t === 'Cu' && aB.t === 'O') || (aB.t === 'Cu' && aA.t === 'O')) cuO.push(v3dist([aA.x, aA.y, aA.z], [aB.x, aB.y, aB.z])) }); document.getElementById('s-cuo').textContent = cuO.length ? (cuO.reduce((s, v) => s + v, 0) / cuO.length * 2).toFixed(2) + ' Å' : '—' }
+        function updateStats() { 
+            document.getElementById('s-natoms').textContent = atoms.length; 
+            document.getElementById('s-nbonds').textContent = bonds.length; 
+            
+            const counts = {};
+            atoms.forEach(a => { counts[a.t] = (counts[a.t] || 0) + 1; });
+            const countsDiv = document.getElementById('s-element-counts');
+            if (countsDiv) {
+                countsDiv.innerHTML = Object.entries(counts).map(([kind, num]) => `<span style="font-weight:600; color:${getCOL(kind)}">${kind}:${num}</span>`).join(' &middot; ');
+            }
+
+            const cu = atoms.filter(a => a.t === 'Cu'); 
+            if (cu.length >= 2) { 
+                document.getElementById('s-cucu').textContent = (v3dist([cu[0].x, cu[0].y, cu[0].z], [cu[1].x, cu[1].y, cu[1].z]) * 2).toFixed(2) + ' Å' 
+            } else {
+                document.getElementById('s-cucu').textContent = '—';
+            }
+            
+            const cuO = []; 
+            bonds.forEach(b => { 
+                const aA = atoms.find(x => x.id === b.a), aB = atoms.find(x => x.id === b.b); 
+                if (!aA || !aB) return; 
+                if ((aA.t === 'Cu' && aB.t === 'O') || (aB.t === 'Cu' && aA.t === 'O')) 
+                    cuO.push(v3dist([aA.x, aA.y, aA.z], [aB.x, aB.y, aB.z])) 
+            }); 
+            document.getElementById('s-cuo').textContent = cuO.length ? (cuO.reduce((s, v) => s + v, 0) / cuO.length * 2).toFixed(2) + ' Å' : '—';
+        }
         function buildColorRow() { const row = document.getElementById('color-row'); row.innerHTML = ''; ELEMENTS.forEach(e => { const l = document.createElement('label'); l.className = 'cr'; l.innerHTML = `<input type="color" value="${e.col}"><span>${e.sym}</span>`; l.querySelector('input').oninput = ev => { e.col = ev.target.value; COL[e.sym] = ev.target.value; draw() }; row.appendChild(l) }) }
         function buildElemPalette() {
             const pal = document.getElementById('elem-palette');
@@ -1752,8 +1167,199 @@
         }
 
         /* ========== EXPORT / IMPORT with persistent storage ========== */
-        function serializeStructure(name) { return JSON.stringify({ version: 8, name: name || 'Unnamed', atoms: atoms.map(a => ({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role, plane: a.plane, id: a.id })), bonds: bonds.map(b => ({ a: b.a, b: b.b, dashed: b.dashed })), customGroups: customGroups.map(cg => ({ ids: cg.ids, color: cg.color })), elements: ELEMENTS.map(e => ({ sym: e.sym, name: e.name, col: e.col, rad: e.rad })), viewState: { angleY, angleX, zoomVal, atomScale, faceAlpha, showBonds, showLabels, activePlane }, timestamp: new Date().toISOString() }, null, 2) }
-        function loadStructureFromJSON(jsonStr) { const d = JSON.parse(jsonStr); if (!d.atoms || !d.bonds) throw new Error('Invalid file'); atoms = []; bonds = []; aid = 0; d.atoms.forEach(a => { atoms.push({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role || a.t, plane: a.plane || '', id: aid++ }) }); d.bonds.forEach(b => { bonds.push({ a: b.a, b: b.b, dashed: !!b.dashed }) }); if (d.customGroups) customGroups = d.customGroups.map(cg => ({ ids: cg.ids, color: cg.color, idx: Date.now() })); if (d.elements) { d.elements.forEach(e => { if (!ELEMENTS.find(x => x.sym === e.sym)) { ELEMENTS.push({ sym: e.sym, name: e.name, col: e.col, rad: e.rad, roles: { [e.sym]: [e.name, 'Custom element'] } }); COL[e.sym] = e.col } else { const ex = ELEMENTS.find(x => x.sym === e.sym); ex.col = e.col; COL[e.sym] = e.col } }) } if (d.viewState) { angleY = d.viewState.angleY ?? angleY; angleX = d.viewState.angleX ?? angleX; zoomVal = d.viewState.zoomVal || 72; atomScale = d.viewState.atomScale || 1; faceAlpha = d.viewState.faceAlpha ?? faceAlpha; showBonds = d.viewState.showBonds ?? true; showLabels = d.viewState.showLabels ?? false; activePlane = d.viewState.activePlane || 'none'; document.getElementById('zoom').value = zoomVal; document.getElementById('zv').textContent = Math.round(zoomVal); document.getElementById('asize').value = atomScale * 100; document.getElementById('asv').textContent = Math.round(atomScale * 100) + '%'; document.getElementById('faceOpac').value = faceAlpha * 100; document.getElementById('fov').textContent = Math.round(faceAlpha * 100) + '%'; document.getElementById('showBonds').checked = showBonds; document.getElementById('showLabels').checked = showLabels; document.getElementById('autoRot').checked = false; autoRotate = false } setMode('view'); buildColorRow(); updateLegend(); updateStats(); draw(); history = []; historyIdx = -1; saveState() }
+        let pbcEnabled = false;
+        let unitCell = { a: 10, b: 10, c: 10, alpha: 90, beta: 90, gamma: 90 };
+
+        function parseXYZ(data) {
+            const lines = data.trim().split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length < 3) throw new Error("Invalid XYZ");
+            const count = parseInt(lines[0]);
+            atoms = []; bonds = []; aid = 0; customGroups = [];
+            for (let i = 2; i < 2 + count && i < lines.length; i++) {
+                const parts = lines[i].split(/\s+/);
+                if (parts.length >= 4) A(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]), parts[0]);
+            }
+            // Simple distance-based auto-bonding for imported elements
+            for (let i = 0; i < atoms.length; i++) {
+                for (let j = i + 1; j < atoms.length; j++) {
+                    const d = v3dist([atoms[i].x, atoms[i].y, atoms[i].z], [atoms[j].x, atoms[j].y, atoms[j].z]);
+                    if (d > 0.4 && d < 2.0) B(atoms[i].id, atoms[j].id);
+                }
+            }
+            // Auto calculate camera bounds based on extents
+            zoomVal = 40;
+            resetCameraForImport();
+        }
+
+        function parseMOL(data) {
+            const lines = data.trim().split('\n');
+            if (lines.length < 4) throw new Error("Invalid MOL");
+            const counts = lines[3].trim().match(/\s*\d+/g);
+            if (!counts || counts.length < 2) throw new Error("Invalid MOL counts");
+            const numAtoms = parseInt(counts[0]), numBonds = parseInt(counts[1]);
+            atoms = []; bonds = []; aid = 0; customGroups = [];
+            for (let i = 4; i < 4 + numAtoms; i++) {
+                const p = lines[i].trim().split(/\s+/);
+                A(parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2]), p[3]);
+            }
+            for (let i = 4 + numAtoms; i < 4 + numAtoms + numBonds; i++) {
+                const p = lines[i].match(/\s*\d+/g);
+                B(atoms[parseInt(p[0]) - 1].id, atoms[parseInt(p[1]) - 1].id);
+            }
+            resetCameraForImport();
+        }
+
+        function parseCIF(data) {
+            const lines = data.trim().split('\n');
+            atoms = []; bonds = []; aid = 0; customGroups = [];
+
+            // --- 1. Unit cell parameters ---
+            const cell = { a: 1, b: 1, c: 1, alpha: 90, beta: 90, gamma: 90 };
+            for (const l of lines) {
+                const lt = l.trim();
+                if (lt.startsWith('_cell_length_a')) cell.a = parseFloat(lt.split(/\s+/)[1]);
+                else if (lt.startsWith('_cell_length_b')) cell.b = parseFloat(lt.split(/\s+/)[1]);
+                else if (lt.startsWith('_cell_length_c')) cell.c = parseFloat(lt.split(/\s+/)[1]);
+                else if (lt.startsWith('_cell_angle_alpha')) cell.alpha = parseFloat(lt.split(/\s+/)[1]);
+                else if (lt.startsWith('_cell_angle_beta'))  cell.beta  = parseFloat(lt.split(/\s+/)[1]);
+                else if (lt.startsWith('_cell_angle_gamma')) cell.gamma = parseFloat(lt.split(/\s+/)[1]);
+            }
+            Object.assign(unitCell, cell);
+
+            // --- 2. Symmetry operations ---
+            const symops = [];
+            let inSym = false;
+            for (const l of lines) {
+                const lt = l.trim();
+                if (lt.startsWith('_symmetry_equiv_pos_as_xyz') || lt.startsWith('_space_group_symop_operation_xyz')) {
+                    inSym = true; continue;
+                }
+                if (inSym) {
+                    if (lt.startsWith('_') || lt.startsWith('loop_') || lt.startsWith('data_')) { inSym = false; continue; }
+                    if (!lt || lt.startsWith('#')) continue;
+                    let op;
+                    if (lt.includes("'")) op = lt.split("'")[1];
+                    else if (lt.includes('"')) op = lt.split('"')[1];
+                    else { const p = lt.split(/\s+/); op = p.length > 1 ? p.slice(1).join('') : p[0]; }
+                    symops.push(op.replace(/\s/g, '').toLowerCase());
+                }
+            }
+            if (!symops.length) symops.push('x,y,z');
+
+            // --- 3. Fractional atoms from loop_ blocks ---
+            const fractAtoms = [];
+            const loopBlocks = data.split('loop_').slice(1);
+            for (const block of loopBlocks) {
+                const blines = block.trim().split('\n');
+                const headers = [], dataRows = [];
+                for (const line of blines) {
+                    const lt = line.trim();
+                    if (!lt || lt.startsWith('#')) continue;
+                    if (lt.startsWith('_')) headers.push(lt.split(/\s+/)[0]);
+                    else dataRows.push(lt.split(/\s+/));
+                }
+                if (!headers.includes('_atom_site_fract_x')) continue;
+                const xIdx = headers.indexOf('_atom_site_fract_x');
+                const yIdx = headers.indexOf('_atom_site_fract_y');
+                const zIdx = headers.indexOf('_atom_site_fract_z');
+                let tIdx  = headers.indexOf('_atom_site_type_symbol');
+                if (tIdx < 0) tIdx = headers.indexOf('_atom_site_label');
+                for (const row of dataRows) {
+                    if (row.length <= Math.max(xIdx, yIdx, zIdx, tIdx)) continue;
+                    const t  = row[tIdx].replace(/[0-9]/g, '');
+                    const fx = parseFloat(row[xIdx].split('(')[0]);
+                    const fy = parseFloat(row[yIdx].split('(')[0]);
+                    const fz = parseFloat(row[zIdx].split('(')[0]);
+                    fractAtoms.push({ t, fx, fy, fz });
+                }
+            }
+
+            // --- 4. Apply symmetry operations and deduplicate ---
+            const applyOp = (op, fx, fy, fz) => {
+                const s = op.replace(/x/g, `(${fx})`).replace(/y/g, `(${fy})`).replace(/z/g, `(${fz})`);
+                const parts = s.split(',');
+                // eslint-disable-next-line no-new-func
+                const ev = expr => Function('"use strict";return(' + expr + ')')();
+                let nx = ((ev(parts[0]) % 1) + 1) % 1;
+                let ny = ((ev(parts[1]) % 1) + 1) % 1;
+                let nz = ((ev(parts[2]) % 1) + 1) % 1;
+                if (nx >= 0.999) nx = 0;
+                if (ny >= 0.999) ny = 0;
+                if (nz >= 0.999) nz = 0;
+                return [nx, ny, nz];
+            };
+            const expanded = [], seen = new Set();
+            for (const a of fractAtoms) {
+                for (const op of symops) {
+                    try {
+                        const [nx, ny, nz] = applyOp(op, a.fx, a.fy, a.fz);
+                        const key = `${a.t}_${nx.toFixed(3)}_${ny.toFixed(3)}_${nz.toFixed(3)}`;
+                        if (!seen.has(key)) { seen.add(key); expanded.push({ t: a.t, fx: nx, fy: ny, fz: nz }); }
+                    } catch (_) {}
+                }
+            }
+
+            // --- 5. Fractional → Cartesian (full transformation matrix) ---
+            const aR = cell.alpha * Math.PI / 180, bR = cell.beta * Math.PI / 180, gR = cell.gamma * Math.PI / 180;
+            const cosA = Math.cos(aR), cosB = Math.cos(bR), cosG = Math.cos(gR), sinG = Math.sin(gR);
+            const vol = Math.sqrt(Math.max(0, 1 - cosA*cosA - cosB*cosB - cosG*cosG + 2*cosA*cosB*cosG));
+            const M = [
+                [cell.a,  cell.b * cosG,  cell.c * cosB],
+                [0,       cell.b * sinG,  cell.c * (cosA - cosB * cosG) / sinG],
+                [0,       0,              cell.c * vol / sinG]
+            ];
+            const cartAtoms = expanded.map(a => ({
+                t: a.t,
+                x: M[0][0]*a.fx + M[0][1]*a.fy + M[0][2]*a.fz,
+                y: M[1][0]*a.fx + M[1][1]*a.fy + M[1][2]*a.fz,
+                z: M[2][0]*a.fx + M[2][1]*a.fy + M[2][2]*a.fz
+            }));
+
+            // --- 6. Origin shift (center of geometry → origin) ---
+            if (cartAtoms.length) {
+                const cx = cartAtoms.reduce((s, a) => s + a.x, 0) / cartAtoms.length;
+                const cy = cartAtoms.reduce((s, a) => s + a.y, 0) / cartAtoms.length;
+                const cz = cartAtoms.reduce((s, a) => s + a.z, 0) / cartAtoms.length;
+                for (const a of cartAtoms) { a.x -= cx; a.y -= cy; a.z -= cz; }
+            }
+
+            // --- 7. Bond detection on real (unscaled) coordinates ---
+            const radii = { H: 0.31, C: 0.76, O: 0.73, N: 0.71, Cu: 1.32, Zn: 1.22 };
+            const rawBonds = [];
+            for (let i = 0; i < cartAtoms.length; i++) {
+                for (let j = i + 1; j < cartAtoms.length; j++) {
+                    const dx = cartAtoms[i].x - cartAtoms[j].x, dy = cartAtoms[i].y - cartAtoms[j].y, dz = cartAtoms[i].z - cartAtoms[j].z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    const ri = radii[cartAtoms[i].t] ?? 0.7, rj = radii[cartAtoms[j].t] ?? 0.7;
+                    if (dist < ri + rj + 0.4 && dist > 0.4) {
+                        rawBonds.push({ i, j, dashed: cartAtoms[i].t === 'Cu' && cartAtoms[j].t === 'Cu' });
+                    }
+                }
+            }
+
+            // --- 8. Safe radius scaling (prevent perspective clipping at per=14) ---
+            const maxR = cartAtoms.reduce((m, a) => Math.max(m, Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z)), 0);
+            if (maxR > 10) {
+                const sf = 10 / maxR;
+                for (const a of cartAtoms) { a.x *= sf; a.y *= sf; a.z *= sf; }
+            }
+
+            // --- 9. Add atoms then bonds ---
+            for (const a of cartAtoms) A(a.x, a.y, a.z, a.t);
+            for (const rb of rawBonds) B(atoms[rb.i].id, atoms[rb.j].id, rb.dashed);
+
+            pbcEnabled = true;
+            resetCameraForImport();
+        }
+
+        function resetCameraForImport() {
+            setMode('view');
+            angleY = 0; angleX = 0; zoomVal = 40; atomScale = 1;
+            document.getElementById('zoom').value = zoomVal; document.getElementById('zv').textContent = zoomVal;
+        }
+
+        function serializeStructure(name) { return JSON.stringify({ version: 9, name: name || 'Unnamed', atoms: atoms.map(a => ({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role, plane: a.plane, id: a.id })), bonds: bonds.map(b => ({ a: b.a, b: b.b, dashed: b.dashed })), customGroups: customGroups.map(cg => ({ ids: cg.ids, color: cg.color })), elements: ELEMENTS.map(e => ({ sym: e.sym, name: e.name, col: e.col, rad: e.rad })), viewState: { angleY, angleX, zoomVal, atomScale, faceAlpha, showBonds, showLabels, activePlane, pbcEnabled, unitCell }, timestamp: new Date().toISOString() }, null, 2) }
+                function loadStructureFromJSON(jsonStr) { const d = JSON.parse(jsonStr); if (!d.atoms || !d.bonds) throw new Error('Invalid file'); atoms = []; bonds = []; aid = 0; d.atoms.forEach(a => { atoms.push({ x: a.x, y: a.y, z: a.z, t: a.t, role: a.role || a.t, plane: a.plane || '', id: aid++ }) }); d.bonds.forEach(b => { bonds.push({ a: b.a, b: b.b, dashed: !!b.dashed }) }); rebuildAtomMap(); if (d.customGroups) customGroups = d.customGroups.map(cg => ({ ids: cg.ids, color: cg.color, idx: Date.now() })); if (d.elements) { d.elements.forEach(e => { if (!ELEMENTS.find(x => x.sym === e.sym)) { ELEMENTS.push({ sym: e.sym, name: e.name, col: e.col, rad: e.rad, roles: { [e.sym]: [e.name, 'Custom element'] } }); COL[e.sym] = e.col } else { const ex = ELEMENTS.find(x => x.sym === e.sym); ex.col = e.col; COL[e.sym] = e.col } }) } if (d.viewState) { angleY = d.viewState.angleY ?? angleY; angleX = d.viewState.angleX ?? angleX; zoomVal = d.viewState.zoomVal || 72; atomScale = d.viewState.atomScale || 1; faceAlpha = d.viewState.faceAlpha ?? faceAlpha; showBonds = d.viewState.showBonds ?? true; showLabels = d.viewState.showLabels ?? false; activePlane = d.viewState.activePlane || 'none'; pbcEnabled = d.viewState.pbcEnabled || false; unitCell = d.viewState.unitCell || unitCell; document.getElementById('zoom').value = zoomVal; document.getElementById('zv').textContent = Math.round(zoomVal); document.getElementById('asize').value = atomScale * 100; document.getElementById('asv').textContent = Math.round(atomScale * 100) + '%'; document.getElementById('faceOpac').value = faceAlpha * 100; document.getElementById('fov').textContent = Math.round(faceAlpha * 100) + '%'; document.getElementById('showBonds').checked = showBonds; document.getElementById('showLabels').checked = showLabels; document.getElementById('autoRot').checked = false; autoRotate = false } setMode('view'); buildColorRow(); updateLegend(); updateStats(); draw(); history = []; historyIdx = -1; saveState() }
         async function saveToStorage(name, json) { try { if (window.storage) await window.storage.set('struct:' + name, json); else localStorage.setItem('struct:' + name, json) } catch (e) { } }
         async function listSaved() { try { if (window.storage) { const r = await window.storage.list('struct:'); return r ? r.keys.map(k => k.replace('struct:', '')) : []; } else return Object.keys(localStorage).filter(k => k.startsWith('struct:')).map(k => k.replace('struct:', '')); } catch (e) { return [] } }
         async function loadFromStorage(name) { try { if (window.storage) { const r = await window.storage.get('struct:' + name); return r ? r.value : null; } else return localStorage.getItem('struct:' + name); } catch (e) { return null } }
@@ -1761,7 +1367,14 @@
 
         window.openExport = function () { document.getElementById('export-name').value = ''; document.getElementById('modal-export').classList.add('open'); setTimeout(() => document.getElementById('export-name').focus(), 80) };
         window.doExport = function () { const name = document.getElementById('export-name').value.trim() || 'HKUST-1 model'; const json = serializeStructure(name); saveToStorage(name, json); const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json); a.download = name.replace(/[^a-zA-Z0-9_-]/g, '_') + '.json'; a.click(); closeModals() };
-        window.openImport = async function () { document.getElementById('file-input').value = ''; const list = document.getElementById('saved-list'); const saved = await listSaved(); if (saved.length) { list.innerHTML = saved.map(n => `<div class="saved-item" onclick="loadSaved('${n.replace(/'/g, "\\'")}')"><span class="si-name">${n}</span><button class="si-del" onclick="event.stopPropagation();deleteSaved('${n.replace(/'/g, "\\'")}')">×</button></div>`).join(''); document.getElementById('import-saved-section').style.display = '' } else { list.innerHTML = '<div style="font:400 11px/1.3 var(--font);color:var(--txt3);padding:6px 0">No saved structures yet.</div>'; document.getElementById('import-saved-section').style.display = '' } document.getElementById('import-status').textContent = ''; document.getElementById('import-status').classList.remove('show'); document.getElementById('modal-import').classList.add('open'); document.getElementById('file-input').onchange = function (e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (ev) { try { loadStructureFromJSON(ev.target.result); closeModals() } catch (err) { document.getElementById('import-status').textContent = 'Error: ' + err.message; document.getElementById('import-status').style.color = 'var(--red)'; document.getElementById('import-status').classList.add('show') } }; reader.readAsText(file) }; };
+        window.openImport = async function () { document.getElementById('file-input').value = ''; const list = document.getElementById('saved-list'); const saved = await listSaved(); if (saved.length) { list.innerHTML = saved.map(n => `<div class="saved-item" onclick="loadSaved('${n.replace(/'/g, "\\'")}')"><span class="si-name">${n}</span><button class="si-del" onclick="event.stopPropagation();deleteSaved('${n.replace(/'/g, "\\'")}')">×</button></div>`).join(''); document.getElementById('import-saved-section').style.display = '' } else { list.innerHTML = '<div style="font:400 11px/1.3 var(--font);color:var(--txt3);padding:6px 0">No saved structures yet.</div>'; document.getElementById('import-saved-section').style.display = '' } document.getElementById('import-status').textContent = ''; document.getElementById('import-status').classList.remove('show'); document.getElementById('modal-import').classList.add('open'); document.getElementById('file-input').onchange = function (e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (ev) { try { 
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            if (ext === '.xyz') parseXYZ(ev.target.result);
+            else if (ext === '.mol') parseMOL(ev.target.result);
+            else if (ext === '.cif') parseCIF(ev.target.result);
+            else loadStructureFromJSON(ev.target.result); 
+            buildColorRow(); updateStats(); draw(); saveState(); closeModals();
+        } catch (err) { document.getElementById('import-status').textContent = 'Error: ' + err.message; document.getElementById('import-status').style.color = 'var(--red)'; document.getElementById('import-status').classList.add('show') } }; reader.readAsText(file) }; };
         window.loadSaved = async function (name) { const json = await loadFromStorage(name); if (json) { try { loadStructureFromJSON(json); closeModals() } catch (e) { } } };
         window.deleteSaved = async function (name) { await deleteFromStorage(name); openImport() };
         window.closeModals = function () { document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open')) };
@@ -1928,13 +1541,16 @@
 
                     let anySnapped = false, lastSnapLabel = '';
                     let finalDelta = [...delta3d];
+                    activeSnapGuides = [];
 
                     for (let id of dragIds) {
                         const startPos = dragStartAtomPositions[id]; if (!startPos) continue;
                         const snap = trySnap(id, [startPos.x + delta3d[0], startPos.y + delta3d[1], startPos.z + delta3d[2]], axDir);
                         if (snap.snapped) {
                             finalDelta = v3sub(snap.pos, [startPos.x, startPos.y, startPos.z]);
-                            anySnapped = true; lastSnapLabel = snap.label; break;
+                            anySnapped = true; lastSnapLabel = snap.label; 
+                            if (snap.guide) activeSnapGuides.push(snap.guide);
+                            break;
                         }
                     }
 
@@ -1942,6 +1558,43 @@
                         const startPos = dragStartAtomPositions[id]; if (!startPos) return;
                         const aT = atoms.find(x => x.id === id); aT.x = startPos.x + finalDelta[0]; aT.y = startPos.y + finalDelta[1]; aT.z = startPos.z + finalDelta[2];
                     });
+
+                    // Auto-relaxation step: simple spring layout applied to immediate neighbors of moved atoms
+                    if (autoRelax && currentMode === 'move') {
+                         const K = 0.5; // Spring force constant
+                         const damping = 0.5;
+                         // Get neighbors not in selection
+                         const neighborsToRelax = new Set();
+                         dragIds.forEach(id => getNeighbors(id).forEach(n => {
+                             if (!dragIds.includes(n)) neighborsToRelax.add(n);
+                         }));
+                         
+                         neighborsToRelax.forEach(nid => {
+                             const nAtom = atoms.find(x => x.id === nid);
+                             if (!nAtom.vel) nAtom.vel = [0,0,0];
+                             if (!nAtom.origNeighborsDist) {
+                                 // Caching the target distance based on initial bond length (approximate resting state)
+                                 nAtom.origNeighborsDist = {};
+                                 getNeighbors(nid).forEach(nn => {
+                                     const nnAtom = atoms.find(x => x.id === nn);
+                                     nAtom.origNeighborsDist[nn] = dragStartAtomPositions[nn] ? v3dist([dragStartAtomPositions[nn].x, dragStartAtomPositions[nn].y, dragStartAtomPositions[nn].z], [nAtom.x, nAtom.y, nAtom.z]) : v3dist([nnAtom.x, nnAtom.y, nnAtom.z], [nAtom.x, nAtom.y, nAtom.z]);
+                                 });
+                             }
+                             let force = [0,0,0];
+                             getNeighbors(nid).forEach(nn => {
+                                 const nnAtom = atoms.find(x => x.id === nn);
+                                 const dVec = v3sub([nnAtom.x, nnAtom.y, nnAtom.z], [nAtom.x, nAtom.y, nAtom.z]);
+                                 const dLen = v3len(dVec) || 0.001;
+                                 const targetLen = nAtom.origNeighborsDist[nn] || 1.5;
+                                 const fMag = (dLen - targetLen) * K;
+                                 force = v3add(force, v3scale(v3norm(dVec), fMag));
+                             });
+                             nAtom.vel = v3scale(v3add(nAtom.vel, force), damping);
+                             nAtom.x += nAtom.vel[0];
+                             nAtom.y += nAtom.vel[1];
+                             nAtom.z += nAtom.vel[2];
+                         });
+                    }
 
                     const si = document.getElementById('snap-indicator');
                     if (anySnapped) { si.textContent = '⊙ ' + lastSnapLabel; si.style.opacity = '1'; si.style.left = (mx + 20) + 'px'; si.style.top = (my + 16) + 'px'; }
@@ -2049,8 +1702,14 @@
         document.getElementById('showBonds').onchange = e => { showBonds = e.target.checked; draw() };
         document.getElementById('showLabels').onchange = e => { showLabels = e.target.checked; draw() };
         document.getElementById('snapEnabled').onchange = e => { snapEnabled = e.target.checked };
+        document.getElementById('fogEnabled').onchange = e => { fogEnabled = e.target.checked; draw() };
+        document.getElementById('supercellEnabled').onchange = e => { supercellEnabled = e.target.checked; draw() };
+        document.getElementById('sc-nx').onchange = e => { supercellNx = +e.target.value; draw() };
+        document.getElementById('sc-ny').onchange = e => { supercellNy = +e.target.value; draw() };
+        document.getElementById('sc-nz').onchange = e => { supercellNz = +e.target.value; draw() };
 
-        window.setPlane = function (p) { activePlane = p; document.querySelectorAll('#tp-presets .btn[id^="v-"]').forEach(b => b.classList.remove('on')); const el = document.getElementById('v-' + p); if (el) el.classList.add('on'); draw() };
+        window.setPlane = function (p) { activePlane = p; document.querySelectorAll('#tp-presets .btn[id^="v-"]').forEach(b => b.classList.remove('on')); const el = document.getElementById('v-' + p); if (el) el.classList.add('on'); document.getElementById('commit-preset-row').style.display = (p !== 'none') ? '' : 'none'; draw() };
+        window.commitPreset = function () { if (activePlane === 'none') return; const color = PRESET_COL[activePlane]; getPlaneGroups(activePlane).forEach(ids => { customGroups.push({ ids, color, idx: Date.now() }) }); setPlane('none'); updateLegend(); draw(); saveState() };
         window.setView = function (yD, xD) { angleY = yD * Math.PI / 180; angleX = xD * Math.PI / 180; autoRotate = false; document.getElementById('autoRot').checked = false; draw() };
 
         /* ========== KEYBOARD ========== */
@@ -2082,13 +1741,27 @@
             }
         });
 
+        /* ========== PNG EXPORT ========== */
+        window.exportPNG = function () {
+            const wasAutoRotate = autoRotate;
+            autoRotate = false;
+            draw();
+            const off = document.createElement('canvas');
+            off.width = canvas.width; off.height = canvas.height;
+            const offCtx = off.getContext('2d');
+            offCtx.fillStyle = dark ? '#1f2937' : '#f9f9fa';
+            offCtx.fillRect(0, 0, off.width, off.height);
+            offCtx.drawImage(canvas, 0, 0);
+            const link = document.createElement('a');
+            link.download = 'HKUST-1_structure.png';
+            link.href = off.toDataURL('image/png');
+            link.click();
+            autoRotate = wasAutoRotate;
+        };
+
         /* ========== INIT ========== */
         buildDefault();
         saveState();
         setMode('view');
         buildColorRow(); updateStats(); setPlane('none');
         (function animate() { if (autoRotate) { angleY += .004; draw() } requestAnimationFrame(animate) })(); draw();
-    </script>
-</body>
-
-</html>
