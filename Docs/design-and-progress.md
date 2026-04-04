@@ -215,7 +215,7 @@ Reference test pair: `models/CIF/2300380.cif` ↔ `models/HKUST_CIF.json`
 
 | Feature | Priority | Notes |
 |---|---|---|
-| Cavity detection preset | High | Detects enclosed cavities formed by chains of multiple atoms. Test using `HKUST_CIF.json` (7 cavities: 1 at the centre and 6 at the peripherals) |
+| Cavity detection preset | High | Detects enclosed cavities. Strategy: The Carbon rings (from 'Rings' preset) collectively form cavities on both sides. Test using `HKUST_CIF.json` (7 cavities: 1 at the centre and 6 at the peripherals) |
 | XYZ export | Medium | Write `atoms[]` to XYZ string format |
 | Unit cell wireframe box | Medium | Use `unitCell` params to draw 12-edge lattice box |
 | Distance measurement mode | Medium | Click 2 atoms → floating Å label (non-bonded) |

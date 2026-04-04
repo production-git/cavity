@@ -174,7 +174,7 @@
 
         let customGroups = [];
         const PCOLORS = ['#D85A30', '#1D9E75', '#D4537E', '#BA7517', '#534AB7', '#E24B4A', '#378ADD'];
-        const PRESET_COL = { 'cu-o': '#3B4D9E', 'carb': '#BA7517', 'ring': '#1D9E75' };
+        const PRESET_COL = { 'cu-o': '#3B4D9E', 'carb': '#BA7517', 'ring': '#1D9E75', 'cavities': '#5cb8ff' };
         let pcIdx = 0;
         let currentAxes = [], hoveredAxisIdx = -1;
         const AXIS_COLORS = ['#E24B4A', '#1D9E75', '#3B6EE6', '#BA7517', '#7B5EC6', '#D4537E'];
@@ -383,10 +383,152 @@
             // CIF fallback: distinguish carboxylate C from ring C via bond graph
             if (atom.t === 'C') {
                 const nbrs = getNeighbors(atom.id);
-                const hasO = nbrs.some(nid => { const n = getAtom(nid); return n && n.t === 'O'; });
+                const hasO = nbrs.some(nid => { const n = atoms.find(x => x.id === nid); return n && n.t === 'O'; });
                 return hasO ? 'carb' : 'ring';
             }
             return ELEM_PLANE_FALLBACK[atom.t] || '';
+        }
+
+        function getCavitySpheres() {
+            // Do not hardcode spatial bounds; calculate average bond length dynamically to represent scale
+            let sumBondLen = 0;
+            if (bonds && bonds.length > 0) {
+                bonds.forEach(b => {
+                    const a1 = atoms.find(x => x.id === b.a), a2 = atoms.find(x => x.id === b.b);
+                    if (a1 && a2) sumBondLen += Math.sqrt((a1.x-a2.x)**2 + (a1.y-a2.y)**2 + (a1.z-a2.z)**2);
+                });
+            }
+            const avgBondLen = bonds.length > 0 ? sumBondLen / bonds.length : 1.5;
+            const clusterDist = avgBondLen * 2.0;
+
+            // Find all carbon rings
+            const rings = getPlaneGroups('ring');
+            const ringData = rings.map(ids => {
+                let cx=0, cy=0, cz=0;
+                ids.forEach(id => { const a = atoms.find(x => x.id === id); cx+=a.x; cy+=a.y; cz+=a.z; });
+                cx/=ids.length; cy/=ids.length; cz/=ids.length;
+                
+                let nx=0, ny=0, nz=0;
+                for(let i=0; i<ids.length; i++){
+                    const curr = atoms.find(x => x.id === ids[i]), next = atoms.find(x => x.id === ids[(i+1)%ids.length]);
+                    nx += (curr.y - next.y) * (curr.z + next.z);
+                    ny += (curr.z - next.z) * (curr.x + next.x);
+                    nz += (curr.x - next.x) * (curr.y + next.y);
+                }
+                const len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+                return { cx, cy, cz, nx: nx/len, ny: ny/len, nz: nz/len, ids };
+            });
+
+            // Calculate 2 normal vectors from each ring
+            const rays = [];
+            ringData.forEach((r, i) => {
+                rays.push({ ringIdx: i, ox: r.cx, oy: r.cy, oz: r.cz, dx: r.nx, dy: r.ny, dz: r.nz });
+                rays.push({ ringIdx: i, ox: r.cx, oy: r.cy, oz: r.cz, dx: -r.nx, dy: -r.ny, dz: -r.nz });
+            });
+
+            // Group the vectors that are converging together
+            const converges = [];
+            for(let i=0; i<rays.length; i++){
+                for(let j=i+1; j<rays.length; j++){
+                    const r1 = rays[i], r2 = rays[j];
+                    if (r1.ringIdx === r2.ringIdx) continue;
+                    
+                    const p12x = r2.ox - r1.ox, p12y = r2.oy - r1.oy, p12z = r2.oz - r1.oz;
+                    const d1d2 = r1.dx*r2.dx + r1.dy*r2.dy + r1.dz*r2.dz;
+                    const denom = 1.0 - d1d2*d1d2;
+                    if(denom < 1e-6) continue;
+                    
+                    const pd1 = p12x*r1.dx + p12y*r1.dy + p12z*r1.dz;
+                    const pd2 = p12x*r2.dx + p12y*r2.dy + p12z*r2.dz;
+                    const t1 = (pd1 - pd2*d1d2) / denom;
+                    const t2 = (pd1*d1d2 - pd2) / denom;
+                    
+                    // Rays must point towards intersection (i.e. converging)
+                    if (t1 > 0 && t2 > 0) {
+                        const c1x = r1.ox + r1.dx*t1, c1y = r1.oy + r1.dy*t1, c1z = r1.oz + r1.dz*t1;
+                        const c2x = r2.ox + r2.dx*t2, c2y = r2.oy + r2.dy*t2, c2z = r2.oz + r2.dz*t2;
+                        const dist = Math.sqrt((c1x-c2x)**2 + (c1y-c2y)**2 + (c1z-c2z)**2);
+                        
+                        if(dist < clusterDist) {
+                            converges.push({
+                                x: (c1x+c2x)/2, 
+                                y: (c1y+c2y)/2, 
+                                z: (c1z+c2z)/2,
+                                r1: r1.ringIdx,
+                                r2: r2.ringIdx
+                            });
+                        }
+                    }
+                }
+            }
+
+            const clusters = [];
+            converges.forEach(pt => {
+                let added = false;
+                for(const c of clusters) {
+                    if(Math.sqrt((c.x/c.count - pt.x)**2 + (c.y/c.count - pt.y)**2 + (c.z/c.count - pt.z)**2) < clusterDist) {
+                        c.x += pt.x; c.y += pt.y; c.z += pt.z; 
+                        c.count++;
+                        c.rings.add(pt.r1); c.rings.add(pt.r2);
+                        added = true; break;
+                    }
+                }
+                if(!added) {
+                    clusters.push({x: pt.x, y: pt.y, z: pt.z, count: 1, rings: new Set([pt.r1, pt.r2])});
+                }
+            });
+
+            // Need 4 or more normal vectors to form an approximate convergence -> center
+            const validCenters = clusters
+                .filter(c => c.rings.size >= 4)
+                .map(c => ({x: c.x/c.count, y: c.y/c.count, z: c.z/c.count, rings: c.rings}));
+                
+            const finalCenters = [];
+            validCenters.forEach(vc => {
+                let merged = false;
+                for (const fc of finalCenters) {
+                    if (Math.sqrt((fc.x - vc.x)**2 + (fc.y - vc.y)**2 + (fc.z - vc.z)**2) < clusterDist * 1.5) {
+                        fc.x = (fc.x * fc.count + vc.x) / (fc.count + 1);
+                        fc.y = (fc.y * fc.count + vc.y) / (fc.count + 1);
+                        fc.z = (fc.z * fc.count + vc.z) / (fc.count + 1);
+                        fc.count++;
+                        vc.rings.forEach(r => fc.rings.add(r));
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged) finalCenters.push({ x: vc.x, y: vc.y, z: vc.z, count: 1, rings: new Set(vc.rings) });
+            });
+
+            // Enclosure filter: verify the rings spatially surround the center
+            const enclosedCenters = finalCenters.filter(center => {
+                let sumX = 0, sumY = 0, sumZ = 0;
+                center.rings.forEach(rIdx => {
+                    const r = ringData[rIdx];
+                    const dx = r.cx - center.x;
+                    const dy = r.cy - center.y;
+                    const dz = r.cz - center.z;
+                    const len = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+                    sumX += dx / len;
+                    sumY += dy / len;
+                    sumZ += dz / len;
+                });
+                const N = center.rings.size;
+                const mag = Math.sqrt(sumX*sumX + sumY*sumY + sumZ*sumZ) / N;
+                // mag < 0.5 mathematically proves the rings cannot all be contained in a single hemisphere.
+                // We use < 0.45 to ensure a strong 3D enclosure and eliminate "bowls" on the molecule's exterior.
+                return mag < 0.45; 
+            });
+            
+            // Create the largest sphere with this point as the center such that no atom is inside
+            return enclosedCenters.map((center, index) => {
+                let minDist = Infinity;
+                atoms.forEach(a => {
+                    const d = Math.sqrt((a.x-center.x)**2 + (a.y-center.y)**2 + (a.z-center.z)**2);
+                    if(d < minDist) minDist = d;
+                });
+                return { cx: center.x, cy: center.y, cz: center.z, r: minDist, isSphere: true, ids: [], color: PRESET_COL['cavities'], cavityId: (index + 1) };
+            });
         }
 
         function getPlaneGroups(plane) {
@@ -428,7 +570,9 @@
                 return drawGroupsCache;
             }
             const g = [];
-            if (activePlane !== 'none') {
+            if (activePlane === 'cavities') {
+                getCavitySpheres().forEach(s => g.push(s));
+            } else if (activePlane !== 'none') {
                 const color = PRESET_COL[activePlane] || '#888888';
                 getPlaneGroups(activePlane).forEach(ids => {
                     const f = decomposeFaces(ids);
@@ -645,6 +789,14 @@
 
             const drawList = [];
             groups.forEach(gr => {
+                if (gr.isSphere) {
+                    const pCenter = project(gr.cx, gr.cy, gr.cz);
+                    if (!pCenter) return;
+                    const pEdge = project(gr.cx + gr.r, gr.cy, gr.cz);
+                    const pr = Math.sqrt((pEdge.sx - pCenter.sx)**2 + (pEdge.sy - pCenter.sy)**2);
+                    drawList.push({ type: 'cavitySphere', z: pCenter.sz, cx: pCenter.sx, cy: pCenter.sy, r: pr, color: gr.color });
+                    return;
+                }
                 gr.faces.forEach(f => {
                     if (f.some(id => !projMap[id])) return;
                     const mz = f.reduce((s, id) => s + projMap[id].sz, 0) / f.length;
@@ -738,6 +890,7 @@
             drawList.forEach(d => {
                 if (d.type === 'face') { const pts = d.fIds.map(id => ({ sx: projMap[id].sx, sy: projMap[id].sy })); if (pts.length < 3) return; const [r, g, b] = hexRgb(d.color); ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy) }); ctx.closePath(); ctx.fillStyle = `rgba(${r},${g},${b},${faceAlpha})`; ctx.fill(); ctx.restore() }
                 if (d.type === 'edge') { const p1 = d.p1, p2 = d.p2; const [r, g, bc] = hexRgb(d.color); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = `rgba(${r},${g},${bc},${dark ? .7 : .55})`; ctx.lineWidth = 2; ctx.stroke() }
+                if (d.type === 'cavitySphere') { const [r, g, b] = hexRgb(d.color); ctx.save(); ctx.beginPath(); ctx.arc(d.cx, d.cy, d.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},0.3)`; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${r},${g},${b},0.6)`; ctx.stroke(); ctx.restore() }
                 if (d.type === 'vtx') { const p = projMap[d.id]; const [r, g, b] = hexRgb(d.color); ctx.beginPath(); ctx.arc(p.sx, p.sy, 3.5, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${dark ? .8 : .65})`; ctx.fill() }
                 if (d.type === 'prevface') { const pts = d.fIds.map(id => ({ sx: projMap[id].sx, sy: projMap[id].sy })); ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy) }); ctx.closePath(); ctx.fillStyle = 'rgba(123,94,198,.1)'; ctx.fill(); ctx.restore() }
                 if (d.type === 'prevedge') { const p1 = d.p1, p2 = d.p2; ctx.save(); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy); ctx.strokeStyle = 'rgba(123,94,198,.4)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.restore() }
@@ -1051,6 +1204,26 @@
             }
             return hitIdx;
         }
+
+        function hitCavityTest(mx, my) {
+            let hit = null, bestZ = -Infinity;
+            if (activePlane === 'cavities') {
+                const groups = getAllDrawGroups();
+                groups.forEach(gr => {
+                    if (gr.isSphere) {
+                        const pCenter = project(gr.cx, gr.cy, gr.cz);
+                        if (!pCenter) return;
+                        const pEdge = project(gr.cx + gr.r, gr.cy, gr.cz);
+                        const pr = Math.sqrt((pEdge.sx - pCenter.sx)**2 + (pEdge.sy - pCenter.sy)**2);
+                        if ((mx - pCenter.sx)**2 + (my - pCenter.sy)**2 <= pr*pr) {
+                            if (pCenter.sz > bestZ) { bestZ = pCenter.sz; hit = gr; }
+                        }
+                    }
+                });
+            }
+            return hit;
+        }
+
         /* ========== UI UPDATES ========== */
         function updateModePill() {
             const p = document.getElementById('mode-pill'), t = p.querySelector('.mode-text');
@@ -1644,7 +1817,9 @@
 
             const hit = hitTest(mx, my);
             let hBond = -1;
+            let hCavity = null;
             if (!hit) hBond = hitBondTest(mx, my);
+            if (!hit && hBond === -1) hCavity = hitCavityTest(mx, my);
 
             // Basic HTML Tooltip (Identity Info)
             if (hit) {
@@ -1667,13 +1842,22 @@
                     let tx = mx + 14, ty = my - 10; if (tx + 180 > rect.width) tx = mx - 150; if (ty < 0) ty = 10;
                     tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
                 }
+            } else if (hCavity) {
+                hoveredAtom = null; hoveredBond = -1;
+                let html = `<div class="en">Cavity #${hCavity.cavityId}</div>`;
+                html += `<div class="ed">Radius: ${hCavity.r.toFixed(2)}Å</div>`;
+                html += `<div class="ed">Center: [${hCavity.cx.toFixed(1)}, ${hCavity.cy.toFixed(1)}, ${hCavity.cz.toFixed(1)}]</div>`;
+                tip.innerHTML = html;
+                tip.style.opacity = '1';
+                let tx = mx + 14, ty = my - 10; if (tx + 180 > rect.width) tx = mx - 150; if (ty < 0) ty = 10;
+                tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
             } else {
                 tip.style.opacity = '0';
             }
 
             // Set logical cursor
             let cursor = 'grab';
-            if (currentMode === 'view') cursor = (hit || hBond >= 0) ? 'pointer' : 'grab';
+            if (currentMode === 'view') cursor = (hit || hBond >= 0 || hCavity) ? 'pointer' : 'grab';
             else if (currentMode === 'add' && addSubMode === 'delete') cursor = (hit || hBond >= 0) ? 'pointer' : 'crosshair';
             else cursor = hit ? 'pointer' : 'crosshair';
             canvas.style.cursor = cursor;
