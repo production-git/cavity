@@ -12,16 +12,16 @@ Key Rule (User Provided): "Treat cavities as spheres, that are enclosed volumes 
 app.js
 Parameter-Free Cavity Algorithm Execution: Add logic to handle the cavities preset selection. Manual radius settings from the UI are intentionally omitted to keep the experience completely automatic.
 
-- Retrieve all Carbon ring groupings.
-Compute the centroid and normal vector for each ring.
-Intersection-Based Center Detection: Calculate the shortest-distance intersections (midpoints) among all pairs of ring normal vectors. Where multiple rings face the same internal volume, their normal lines will converge.
-- Spatial Clustering: Cluster these intersection points. Centers supported by multiple contributing rings (>= 4) are validated as true cavity centers.
-Maximal Empty Sphere Calculation: From each validated cavity center, find the Euclidean distance to the nearest physical atom in the overall framework. This directly establishes the largest possible radius of an empty sphere fitting inside the cavity volume.
-Rendering Cavity Spheres:
-
-The traditional string of atom IDs in getAllDrawGroups is not suitable for drawing free-standing spheres.
-We will introduce a dynamically managed pseudo-atom array cavitySpheres holding the exact {x, y, z, r} representing the calculated spatial spheres.
-In the primary rendering loop (canvas painter's algorithm), these spheres will be z-sorted uniformly with the standard atoms. They will be projected into 2D and rendered as massive, semi-transparent filled circles, creating an intuitive 3D visualization of the enclosed void volume, occluding background geometry appropriately.
+- Find all Carbon rings.
+- Calculate 2 normal vectors from each ring (one for each face).
+- Group the vectors that are converging together.
+- A cluster of 4 or more converging normal vectors forms an approximate convergence point.
+- This convergence point becomes the center of a cavity.
+- Calculate the largest sphere from this center such that no atom is inside the sphere.
+- Rendering Cavity Spheres:
+    - The traditional string of atom IDs in `getAllDrawGroups` is not used.
+    - We utilize a dynamic array `cavitySpheres` holding the calculated `{x, y, z, r}`.
+    - In the primary rendering loop, these spheres are z-sorted alongside standard atoms and rendered as large, semi-transparent filled circles.
 [Component: UI Layout]
 [MODIFY] 
 index.html

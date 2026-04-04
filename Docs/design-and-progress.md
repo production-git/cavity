@@ -107,7 +107,7 @@ Projection: per-divide perspective
 | Cu–O | Copper and bridging-oxygen square plane |
 | Carb | Carboxylate carbons |
 | Rings | Aromatic BTC ring carbons |
-| Cavities | Enclosed cavities within the molecule formed by chains of multiple atoms |
+| Cavities | Handled automatically; visualises enclosed volumes bounded by Carbon rings as maximal empty spheres |
 
 ### Import / Export
 
@@ -195,6 +195,7 @@ Reference test pair: `models/CIF/2300380.cif` ↔ `models/HKUST_CIF.json`
 - **PNG export** (`↓ PNG` button): off-screen canvas composite with theme-correct background, downloads as `HKUST-1_structure.png`
 - **Depth fog toggle** (View Settings → "Depth fog"): per-frame Z-range normalisation, fog factor `0.15 → 1.0` applied to atom `globalAlpha` and bond rgba; works on base + supercell ghosts
 - **Supercell tiling** (Presets → "Supercell tiling"): enable toggle + X/Y/Z repeat selectors; ghost copies at reduced opacity, depth-sorted, fog-aware
+- **Cavity detection** (Presets → "Cavities"): Automated detection using Carbon ring normal convergence; renders maximal empty spheres (7 cavities in HKUST-1)
 
 ---
 
@@ -215,7 +216,6 @@ Reference test pair: `models/CIF/2300380.cif` ↔ `models/HKUST_CIF.json`
 
 | Feature | Priority | Notes |
 |---|---|---|
-| Cavity detection preset | High | Detects enclosed cavities. Strategy: The Carbon rings (from 'Rings' preset) collectively form cavities on both sides. Test using `HKUST_CIF.json` (7 cavities: 1 at the centre and 6 at the peripherals) |
 | XYZ export | Medium | Write `atoms[]` to XYZ string format |
 | Unit cell wireframe box | Medium | Use `unitCell` params to draw 12-edge lattice box |
 | Distance measurement mode | Medium | Click 2 atoms → floating Å label (non-bonded) |
