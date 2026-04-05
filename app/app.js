@@ -403,14 +403,45 @@
 
             // Find all carbon rings
             const rings = getPlaneGroups('ring');
+
+            // getPlaneGroups returns atoms in BFS order, not polygon order.
+            // The Newell method for computing ring normals requires vertices in cyclic
+            // (polygon) order — wrong order produces a completely wrong normal direction.
+            // Fix: traverse the ring by following bond adjacency within the ring.
+            const sortToPolygonOrder = (ids) => {
+                const ringSet = new Set(ids);
+                const ringAdj = new Map();
+                ids.forEach(id => ringAdj.set(id, []));
+                bonds.forEach(b => {
+                    if (ringSet.has(b.a) && ringSet.has(b.b)) {
+                        ringAdj.get(b.a).push(b.b);
+                        ringAdj.get(b.b).push(b.a);
+                    }
+                });
+                const start = ids[0];
+                const ordered = [start];
+                let prev = -1, cur = start;
+                while (ordered.length < ids.length) {
+                    const nbrs = (ringAdj.get(cur) || []).filter(n => n !== prev);
+                    if (!nbrs.length) break;
+                    const next = nbrs[0];
+                    if (next === start) break;
+                    ordered.push(next);
+                    prev = cur;
+                    cur = next;
+                }
+                return ordered.length === ids.length ? ordered : ids;
+            };
+
             const ringData = rings.map(ids => {
+                const orderedIds = sortToPolygonOrder(ids);
                 let cx=0, cy=0, cz=0;
-                ids.forEach(id => { const a = atoms.find(x => x.id === id); cx+=a.x; cy+=a.y; cz+=a.z; });
-                cx/=ids.length; cy/=ids.length; cz/=ids.length;
-                
+                orderedIds.forEach(id => { const a = atoms.find(x => x.id === id); cx+=a.x; cy+=a.y; cz+=a.z; });
+                cx/=orderedIds.length; cy/=orderedIds.length; cz/=orderedIds.length;
+
                 let nx=0, ny=0, nz=0;
-                for(let i=0; i<ids.length; i++){
-                    const curr = atoms.find(x => x.id === ids[i]), next = atoms.find(x => x.id === ids[(i+1)%ids.length]);
+                for(let i=0; i<orderedIds.length; i++){
+                    const curr = atoms.find(x => x.id === orderedIds[i]), next = atoms.find(x => x.id === orderedIds[(i+1)%orderedIds.length]);
                     nx += (curr.y - next.y) * (curr.z + next.z);
                     ny += (curr.z - next.z) * (curr.x + next.x);
                     nz += (curr.x - next.x) * (curr.y + next.y);
@@ -520,14 +551,45 @@
                 return mag < 0.45; 
             });
             
+            // Refine each candidate center via gradient ascent to find the true
+            // Chebyshev center (maximises the minimum distance to all atoms).
+            // Starting inside the cavity, the algorithm moves away from the nearest
+            // atom; moves are only accepted if they strictly improve min-distance,
+            // so the center stays within the void and cannot escape through a wall.
+            const refineCenterMaxMinDist = (cx, cy, cz) => {
+                let x = cx, y = cy, z = cz;
+                let step = avgBondLen * 0.4;
+                for (let iter = 0; iter < 200; iter++) {
+                    let minD = Infinity, closestAtom = null;
+                    atoms.forEach(a => {
+                        const d = Math.sqrt((a.x-x)**2 + (a.y-y)**2 + (a.z-z)**2);
+                        if (d < minD) { minD = d; closestAtom = a; }
+                    });
+                    if (!closestAtom) break;
+                    const vx = x - closestAtom.x, vy = y - closestAtom.y, vz = z - closestAtom.z;
+                    const vlen = Math.sqrt(vx*vx + vy*vy + vz*vz) || 1;
+                    const tx = x + vx/vlen * step, ty = y + vy/vlen * step, tz = z + vz/vlen * step;
+                    let newMinD = Infinity;
+                    atoms.forEach(a => {
+                        const d = Math.sqrt((a.x-tx)**2 + (a.y-ty)**2 + (a.z-tz)**2);
+                        if (d < newMinD) newMinD = d;
+                    });
+                    if (newMinD >= minD) { x = tx; y = ty; z = tz; }
+                    else { step *= 0.6; }
+                    if (step < 0.002) break;
+                }
+                return { x, y, z };
+            };
+
             // Create the largest sphere with this point as the center such that no atom is inside
             return enclosedCenters.map((center, index) => {
+                const refined = refineCenterMaxMinDist(center.x, center.y, center.z);
                 let minDist = Infinity;
                 atoms.forEach(a => {
-                    const d = Math.sqrt((a.x-center.x)**2 + (a.y-center.y)**2 + (a.z-center.z)**2);
+                    const d = Math.sqrt((a.x-refined.x)**2 + (a.y-refined.y)**2 + (a.z-refined.z)**2);
                     if(d < minDist) minDist = d;
                 });
-                return { cx: center.x, cy: center.y, cz: center.z, r: minDist, isSphere: true, ids: [], color: PRESET_COL['cavities'], cavityId: (index + 1) };
+                return { cx: refined.x, cy: refined.y, cz: refined.z, r: minDist, isSphere: true, ids: [], color: PRESET_COL['cavities'], cavityId: (index + 1) };
             });
         }
 

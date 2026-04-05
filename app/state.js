@@ -298,13 +298,42 @@ export function getCavitySpheres() {
     const avgBondLen = app.bonds.length > 0 ? sumBondLen/app.bonds.length : 1.5;
     const clusterDist = avgBondLen * 2.0;
     const rings = getPlaneGroups('ring');
+
+    // getPlaneGroups returns atoms in BFS order, not polygon order.
+    // The Newell method requires cyclic polygon order — wrong order gives a
+    // completely wrong normal direction.  Fix: walk the ring via bond adjacency.
+    const sortToPolygonOrder = (ids) => {
+        const ringSet = new Set(ids);
+        const ringAdj = new Map();
+        ids.forEach(id => ringAdj.set(id, []));
+        app.bonds.forEach(b => {
+            if (ringSet.has(b.a) && ringSet.has(b.b)) {
+                ringAdj.get(b.a).push(b.b);
+                ringAdj.get(b.b).push(b.a);
+            }
+        });
+        const start = ids[0];
+        const ordered = [start];
+        let prev = -1, cur = start;
+        while (ordered.length < ids.length) {
+            const nbrs = (ringAdj.get(cur) || []).filter(n => n !== prev);
+            if (!nbrs.length) break;
+            const next = nbrs[0];
+            if (next === start) break;
+            ordered.push(next);
+            prev = cur; cur = next;
+        }
+        return ordered.length === ids.length ? ordered : ids;
+    };
+
     const ringData = rings.map(ids => {
+        const orderedIds = sortToPolygonOrder(ids);
         let cx=0, cy=0, cz=0;
-        ids.forEach(id => { const a = app.atomById.get(id); cx+=a.x; cy+=a.y; cz+=a.z; });
-        cx/=ids.length; cy/=ids.length; cz/=ids.length;
+        orderedIds.forEach(id => { const a = app.atomById.get(id); cx+=a.x; cy+=a.y; cz+=a.z; });
+        cx/=orderedIds.length; cy/=orderedIds.length; cz/=orderedIds.length;
         let nx=0, ny=0, nz=0;
-        for (let i=0; i<ids.length; i++) {
-            const curr = app.atomById.get(ids[i]), next = app.atomById.get(ids[(i+1)%ids.length]);
+        for (let i=0; i<orderedIds.length; i++) {
+            const curr = app.atomById.get(orderedIds[i]), next = app.atomById.get(orderedIds[(i+1)%orderedIds.length]);
             nx += (curr.y-next.y)*(curr.z+next.z);
             ny += (curr.z-next.z)*(curr.x+next.x);
             nz += (curr.x-next.x)*(curr.y+next.y);
@@ -312,6 +341,7 @@ export function getCavitySpheres() {
         const len = Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
         return { cx, cy, cz, nx:nx/len, ny:ny/len, nz:nz/len, ids };
     });
+
     const rays = [];
     ringData.forEach((r,i) => {
         rays.push({ ringIdx:i, ox:r.cx, oy:r.cy, oz:r.cz, dx:r.nx, dy:r.ny, dz:r.nz });
@@ -366,10 +396,52 @@ export function getCavitySpheres() {
         const N=center.rings.size;
         return Math.sqrt(sumX*sumX+sumY*sumY+sumZ*sumZ)/N < 0.45;
     });
-    return enclosedCenters.map((center,index) => {
+
+    // For each enclosed center, refine using ONLY the enclosing ring atoms.
+    // Using all atoms causes the sphere to be blocked by interior metal/bridge atoms
+    // (e.g. Cu at 1.31 Å, O at 1.11 Å from origin) that are NOT cavity walls.
+    // The cavity is geometrically defined by its enclosing rings, so only those
+    // atoms should constrain the center position and radius.
+    //
+    // Gradient ascent: move away from the nearest enclosing-ring atom, accept
+    // only if min-distance strictly improves.  Starting inside the cavity from
+    // the ray-convergence estimate the center converges to the Chebyshev center
+    // of the enclosing ring atoms (largest inscribed sphere w.r.t. ring walls).
+    const refineCenterRingOnly = (cx, cy, cz, enclosingAtoms) => {
+        let x=cx, y=cy, z=cz, step=avgBondLen*0.4;
+        for (let iter=0; iter<200; iter++) {
+            let minD=Infinity, ca=null;
+            enclosingAtoms.forEach(a => { const d=Math.sqrt((a.x-x)**2+(a.y-y)**2+(a.z-z)**2); if (d<minD) { minD=d; ca=a; } });
+            if (!ca) break;
+            const vx=x-ca.x, vy=y-ca.y, vz=z-ca.z, vl=Math.sqrt(vx*vx+vy*vy+vz*vz)||1;
+            const tx=x+vx/vl*step, ty=y+vy/vl*step, tz=z+vz/vl*step;
+            let newMinD=Infinity;
+            enclosingAtoms.forEach(a => { const d=Math.sqrt((a.x-tx)**2+(a.y-ty)**2+(a.z-tz)**2); if (d<newMinD) newMinD=d; });
+            if (newMinD>=minD) { x=tx; y=ty; z=tz; } else { step*=0.6; }
+            if (step<0.002) break;
+        }
+        return {x, y, z};
+    };
+
+    return enclosedCenters.map((center, index) => {
+        // Gather atoms that belong to the enclosing rings
+        const enclosingAtoms = [];
+        center.rings.forEach(rIdx => {
+            ringData[rIdx].ids.forEach(id => {
+                const a = app.atomById.get(id);
+                if (a) enclosingAtoms.push(a);
+            });
+        });
+
+        const refined = refineCenterRingOnly(center.x, center.y, center.z, enclosingAtoms);
+
+        // Radius = distance to nearest enclosing ring atom
         let minDist=Infinity;
-        app.atoms.forEach(a => { const d=Math.sqrt((a.x-center.x)**2+(a.y-center.y)**2+(a.z-center.z)**2); if (d<minDist) minDist=d; });
-        return { cx:center.x, cy:center.y, cz:center.z, r:minDist, isSphere:true, ids:[], color:PRESET_COL['cavities'], cavityId:(index+1) };
+        enclosingAtoms.forEach(a => {
+            const d=Math.sqrt((a.x-refined.x)**2+(a.y-refined.y)**2+(a.z-refined.z)**2);
+            if (d<minDist) minDist=d;
+        });
+        return { cx:refined.x, cy:refined.y, cz:refined.z, r:minDist, isSphere:true, ids:[], color:PRESET_COL['cavities'], cavityId:(index+1) };
     });
 }
 
