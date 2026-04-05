@@ -252,7 +252,7 @@
         function deleteAtom(id, skipSave) {
             atoms = atoms.filter(a => a.id !== id);
             bonds = bonds.filter(b => b.a !== id && b.b !== id);
-            customGroups = customGroups.map(cg => ({ ...cg, ids: cg.ids.filter(i => i !== id) })).filter(cg => cg.ids.length >= 3);
+            customGroups = customGroups.map(cg => cg.isSphere ? cg : { ...cg, ids: cg.ids.filter(i => i !== id) }).filter(cg => cg.isSphere || cg.ids.length >= 3);
             rebuildAtomMap();
 
             if (editSelected.includes(id)) editSelected = editSelected.filter(i => i !== id);
@@ -580,8 +580,12 @@
                 });
             }
             customGroups.forEach(cg => {
-                const f = decomposeFaces(cg.ids);
-                g.push({ faces: f, edges: collectEdges(f), ids: cg.ids, color: cg.color });
+                if (cg.isSphere) {
+                    g.push(cg);
+                } else {
+                    const f = decomposeFaces(cg.ids);
+                    g.push({ faces: f, edges: collectEdges(f), ids: cg.ids, color: cg.color });
+                }
             });
             drawGroupsCache = g;
             drawGroupsCacheVersion = structureVersion;
@@ -792,8 +796,7 @@
                 if (gr.isSphere) {
                     const pCenter = project(gr.cx, gr.cy, gr.cz);
                     if (!pCenter) return;
-                    const pEdge = project(gr.cx + gr.r, gr.cy, gr.cz);
-                    const pr = Math.sqrt((pEdge.sx - pCenter.sx)**2 + (pEdge.sy - pCenter.sy)**2);
+                    const pr = gr.r * zoomVal * 1.15 * pCenter.ps;
                     drawList.push({ type: 'cavitySphere', z: pCenter.sz, cx: pCenter.sx, cy: pCenter.sy, r: pr, color: gr.color });
                     return;
                 }
@@ -1297,7 +1300,7 @@
             }
         }
 
-        function updateLegend() { const el = document.getElementById('plegend'); if (!customGroups.length) { el.innerHTML = ''; return } el.innerHTML = customGroups.map((cg, i) => `<div class="pl-group"><span class="ps" style="background:${cg.color}33;border-color:${cg.color}"></span><span>${describeGeom(cg.ids)}</span><button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--txt3);padding:0" onclick="rmGroup(${i})">×</button></div>`).join('') }
+        function updateLegend() { const el = document.getElementById('plegend'); if (!customGroups.length) { el.innerHTML = ''; return } el.innerHTML = customGroups.map((cg, i) => `<div class="pl-group"><span class="ps" style="background:${cg.color}33;border-color:${cg.color}"></span><span>${cg.isSphere ? `Cavity #${cg.cavityId} (r=${cg.r.toFixed(2)}Å)` : describeGeom(cg.ids)}</span><button style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--txt3);padding:0" onclick="rmGroup(${i})">×</button></div>`).join('') }
         function updateStats() { 
             document.getElementById('s-natoms').textContent = atoms.length; 
             document.getElementById('s-nbonds').textContent = bonds.length; 
@@ -1893,7 +1896,7 @@
         document.getElementById('sc-nz').onchange = e => { supercellNz = +e.target.value; draw() };
 
         window.setPlane = function (p) { activePlane = p; document.querySelectorAll('#tp-presets .btn[id^="v-"]').forEach(b => b.classList.remove('on')); const el = document.getElementById('v-' + p); if (el) el.classList.add('on'); document.getElementById('commit-preset-row').style.display = (p !== 'none') ? '' : 'none'; draw() };
-        window.commitPreset = function () { if (activePlane === 'none') return; const color = PRESET_COL[activePlane]; getPlaneGroups(activePlane).forEach(ids => { customGroups.push({ ids, color, idx: Date.now() }) }); setPlane('none'); updateLegend(); draw(); saveState() };
+        window.commitPreset = function () { if (activePlane === 'none') return; if (activePlane === 'cavities') { getCavitySpheres().forEach(s => { customGroups.push({ ...s, idx: Date.now() }) }); } else { const color = PRESET_COL[activePlane]; getPlaneGroups(activePlane).forEach(ids => { customGroups.push({ ids, color, idx: Date.now() }) }); } setPlane('none'); updateLegend(); draw(); saveState() };
         window.setView = function (yD, xD) { angleY = yD * Math.PI / 180; angleX = xD * Math.PI / 180; autoRotate = false; document.getElementById('autoRot').checked = false; draw() };
 
         /* ========== KEYBOARD ========== */

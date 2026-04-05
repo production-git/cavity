@@ -5,7 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Run the app
-Open `app/index.html` directly in a browser — no build step, no server required.
+Phase 2 uses ES6 modules (`type="module"`), which require HTTP — Chrome blocks module
+loading from `file://` due to CORS policy. Start a local server first:
+
+```bash
+# Python (built-in, no install needed)
+python3 -m http.server 8080 --directory app
+# then open: http://localhost:8080/
+
+# Node (if you prefer)
+npx serve app
+# then open the printed URL
+```
+
+Safari and Firefox can still open `app/index.html` directly via `file://`.
 
 ### CIF → JSON conversion
 ```bash
