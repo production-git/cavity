@@ -77,6 +77,8 @@ For full architecture detail see [Docs/application_design.md](Docs/application_d
 
 ```
 Docs/
+  strategy.md               — Product strategy: positioning, bets, tradeoffs
+  roadmap.md                — Phased delivery plan (Phase 0–4) with exit criteria
   application_design.md     — Architecture, modules, data model, rendering pipeline
   progress.md               — Version history and progress log
   phase-2/
@@ -86,10 +88,27 @@ Docs/
     planned-features.md     — Master feature tracking (all planned + backlog features)
     animation-export.md     — Video/GIF animation export feature plan
     doping-simulation.md    — Metal doping simulation feature plan
+    dft-integration.md      — DFT results visualization feature plan
+    cif-export.md           — CIF export feature plan
+    pore-characterization.md — Geometric pore characterization feature plan
+    structural-analysis-panel.md — Structural analysis panel feature plan
+    layer-visibility-control.md  — Layer visibility and group control feature plan
+    advanced-periodic-exploration.md — Advanced periodic structure exploration
+    guest-molecule-interaction.md    — Guest molecule and ligand functionalization
+    environmental-stability.md      — Environmental stability visualization
     cavity-preset-plan.md   — Cavity detection (COMPLETED)
+    user_feedback/
+      raw.md                — Raw user feedback log
+  3d-presentation-app/      — Separate application: spatial 3D presentation tool
+    strategy.md             — Positioning and strategic bets
+    roadmap.md              — Phased delivery plan
+    prd.md                  — Product requirements
+    feature_plans/          — Feature specs (multi-origin nav, annotations, export)
 ```
 
 **When planning new features:** add an entry to `feature_plans/planned-features.md` first. Complex features get their own file in `feature_plans/`.
+
+**Note:** `3d-presentation-app/` documents a **separate future application** (spatial slide-deck tool for scientists) — not part of this codebase.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

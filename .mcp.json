@@ -3,6 +3,8 @@
     "code-review-graph": {
       "command": "/Users/mrinalmahato/.local/bin/uvx",
       "args": [
+        "--from",
+        "git+https://github.com/tirth8205/code-review-graph",
         "code-review-graph",
         "serve"
       ],

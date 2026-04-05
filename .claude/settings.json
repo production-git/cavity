@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(node -e ':*)",
-      "mcp__code-review-graph__semantic_search_nodes_tool"
+      "mcp__code-review-graph__semantic_search_nodes_tool",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)"
     ]
   },
   "hooks": {
@@ -24,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-review-graph status --json",
+            "command": "code-review-graph status",
             "timeout": 3000
           }
         ]
