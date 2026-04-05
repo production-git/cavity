@@ -1,8 +1,8 @@
 # Phase 2 Design Doc — Graphics & Architecture
 
-> Status: Planning
-> Last updated: 2026-04-04
-> Companion: [phase-2-prd.md](./phase-2-prd.md)
+> Status: Phase 2a COMPLETE — 2b, 2c, 2d in planning
+> Last updated: 2026-04-05
+> Companion: [prd.md](./prd.md)
 
 ---
 

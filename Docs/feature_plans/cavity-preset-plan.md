@@ -1,5 +1,9 @@
 ## Cavity Detection Preset Implementation
-The goal is to implement a new Cavities preset in the MOF Structure Editor which detects enclosed empty spaces bounded by Carbon rings and visualizes them as maximal empty spheres.
+
+> **Status: COMPLETED** — Implemented across commits `f27adeb` → `061ea71` → `272b846` (2026-04-05)
+> Lives in: `state.js:getCavitySpheres()` + `renderer.js` (cavity sphere rendering)
+
+The goal was to implement a new Cavities preset in the MOF Structure Editor which detects enclosed empty spaces bounded by Carbon rings and visualizes them as maximal empty spheres.
 
 ## Background & Strategy
 According to the design docs, cavities are formed by chains of multiple atoms. The strategy dictates using the Carbon rings (identified by the ring preset) which collectively form these cavities on both faces of the rings. The test model is HKUST_CIF.json, which should yield 7 key cavities: 1 at the center and 6 at the peripherals.

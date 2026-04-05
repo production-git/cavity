@@ -20,76 +20,76 @@ npx serve app
 
 Safari and Firefox can still open `app/index.html` directly via `file://`.
 
-### CIF → JSON conversion
-```bash
-python scripts/cif_to_json.py <input.cif> <output.json>
-# Example:
-python scripts/cif_to_json.py models/CIF/2300380.cif models/HKUST_CIF.json
-```
-
-### Run tests
-```bash
-cd scripts && python -m unittest test_cif_to_json -v
-```
-
 ## Architecture
 
-The app is a single-page, zero-dependency browser tool for editing 3D MOF (Metal-Organic Framework) crystal structures.
+The app is a single-page, zero-dependency browser tool for editing 3D MOF crystal structures. It uses ES6 modules loaded via `<script type="module" src="index.js">`.
 
 ```
 app/
-  index.html     — UI layout (canvas, modals, control panels)
-  app.js         — All application logic (~1300 lines, vanilla JS)
-  styles.css     — CSS variables + component styles
-
-models/
-  *.json         — Native model format (hand-authored or exported from app)
-  HKUST_CIF.json — Model converted from CIF via cif_to_json.py
-  CIF/           — Source crystallographic files (.cif)
-
-scripts/
-  cif_to_json.py      — Standalone Python CIF parser + converter
-  test_cif_to_json.py — Unit/integration tests for the converter
+  index.html   — UI layout (canvas, modals, control panels)
+  index.js     — Entry point: init renderer + UI, animation loop
+  state.js     — All data state: atoms[], bonds[], undo/redo, ELEMENTS, CIF/JSON I/O, cavity
+  renderer.js  — Canvas rendering, 3D projection, hit testing
+  ui.js        — Event handlers (mouse/keyboard/touch), modal management, UI update fns
+  math3d.js    — Pure vector math and geometry (no side-effects, no imports)
+  styles.css   — CSS variables + component styles
+  app.js       — Legacy monolithic script (not loaded; kept for reference only)
 ```
 
+**Module dependency direction (strict, no cycles):**
+```
+math3d.js  ←  state.js  ←  renderer.js  ←  ui.js  ←  index.js
+```
+
+### Key entry points
+
+**[state.js](app/state.js)** — single source of truth
+- **`getCavitySpheres()`** (line 290): computes cavity sphere positions and radii
+- **`parseCIF()`** (line 621): in-browser CIF → structure pipeline
+- **`serializeStructure()`** / **`loadStructureFromJSON()`** (lines 705/717): JSON I/O
+- **`saveState()` / `restoreState()`** (lines 186/198): 50-entry undo/redo stack
+
+**[renderer.js](app/renderer.js)** — pure drawing, no state mutation
+- **`draw()`** (line 124): full scene redraw
+- **`hitTest()` / `hitBondTest()` / `hitCavityTest()`** (lines 57/70/106): pick-ray intersection
+
+**[ui.js](app/ui.js)** — all DOM interaction
+- **`init()`** (line 31): binds all canvas and DOM events
+
+**[math3d.js](app/math3d.js)** — stateless geometry primitives
+- Vector ops: `v3sub`, `v3add`, `v3scale`, `v3cross`, `v3dot`, `v3norm`, `v3dist`
+- `rotatePoint()` (line 17), `convexHull3DFaces()` (line 110)
+
+For full architecture detail see [Docs/application_design.md](Docs/application_design.md).
+
 ### JSON model format
-Both the app and the converter produce/consume this schema:
 ```json
 {
-  "version": 8,
-  "name": "...",
+  "version": 9,
   "atoms": [{ "x": 0, "y": 0, "z": 0, "t": "Cu", "role": "Cu", "plane": "cu-o", "id": 0 }],
   "bonds": [{ "a": 0, "b": 1, "dashed": false }]
 }
 ```
-- Coordinates are Cartesian, centered at the origin, scaled to max radius ≤ 10 (the 3D perspective clips at `per = 14`).
-- `t` = element symbol; `role` = semantic role (`Cu`, `O_bridge`, `O_term`, `C_carb`, `C_arom`, `H`); `plane` = highlight group (`cu-o`, `carb`, `ring`, or `""`).
-- App-exported files use version 9 and include additional fields (`customGroups`, `elements`, `viewState`).
+- Coordinates: Cartesian, centred at origin, max radius ≤ 10
+- `t` = element symbol; `role` = semantic role; `plane` = highlight group (`cu-o`, `carb`, `ring`, `""`)
 
-### CIF conversion pipeline (`scripts/cif_to_json.py` and `app.js:parseCIF`)
-Both the Python script and the in-browser CIF parser implement the same pipeline:
-1. Parse unit cell parameters (a, b, c, α, β, γ)
-2. Extract symmetry operations from `loop_` blocks (`_symmetry_equiv_pos_as_xyz` or `_space_group_symop_operation_xyz`)
-3. Parse fractional coordinates for the asymmetric unit; strip uncertainty notation like `0.1(5)` → `0.1`
-4. Apply each symmetry op, wrap to `[0, 1)`, deduplicate with 3-decimal-place keys
-5. Convert fractional → Cartesian via the full triclinic transformation matrix
-6. Center the structure at the geometric centroid
-7. Auto-detect bonds: distance < (r_i + r_j + 0.4 Å) and > 0.4 Å; Cu–Cu bonds are dashed
-8. Scale all coordinates if max radius > 10 (perspective safety)
+## Documentation
 
-The `models/CIF/2300380.cif` and `models/HKUST_CIF.json` files are the reference pair for testing CIF import correctness — they must produce equivalent structures.
+```
+Docs/
+  application_design.md     — Architecture, modules, data model, rendering pipeline
+  progress.md               — Version history and progress log
+  phase-2/
+    prd.md                  — Phase 2 product requirements (WebGL, perf, UI redesign)
+    design.md               — Phase 2 technical design
+  feature_plans/
+    planned-features.md     — Master feature tracking (all planned + backlog features)
+    animation-export.md     — Video/GIF animation export feature plan
+    doping-simulation.md    — Metal doping simulation feature plan
+    cavity-preset-plan.md   — Cavity detection (COMPLETED)
+```
 
-### app.js structure (key sections)
-- **UNDO/REDO** (line ~33): deep-copies `atoms`, `bonds`, `customGroups` into a 50-entry history stack
-- **ELEMENT CATALOG** (line ~85): `ELEMENTS` array defines symbol, display color, radius, and semantic roles
-- **ATOMS & BONDS** (line ~100): `atoms[]` and `bonds[]` are the global mutable state; `A()` and `B()` are the shorthand adders
-- **buildDefault()** (line ~105): procedurally constructs the default HKUST-1 SBU
-- **parseCIF()** (line ~1064): in-browser CIF → structure pipeline (mirrors `cif_to_json.py`)
-- **loadStructureFromJSON()** (line ~1214): deserialises a JSON model into `atoms`/`bonds`
-- **serializeStructure()** (line ~1213): serialises current state to version-9 JSON
-
-### Coordinate system
-3D world coordinates are projected to 2D canvas using a simple perspective divide. The perspective constant `per = 14` means any atom with `|z_screen| ≥ 14` produces division-by-zero artefacts — hence the max-radius-10 scaling in both importers.
+**When planning new features:** add an entry to `feature_plans/planned-features.md` first. Complex features get their own file in `feature_plans/`.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
@@ -129,3 +129,20 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+
+### CIF → JSON conversion
+```bash
+python scripts/cif_to_json.py <input.cif> <output.json>
+# Example:
+python scripts/cif_to_json.py models/CIF/2300380.cif models/HKUST_CIF.json
+```
+
+Implemented in both `scripts/cif_to_json.py` and `state.js:parseCIF` — see [Docs/application_design.md](Docs/application_design.md) for the full pipeline.
+
+Reference test pair: `models/CIF/2300380.cif` ↔ `models/HKUST_CIF.json`
+
+### Run tests
+```bash
+cd scripts && python -m unittest test_cif_to_json -v
+```

@@ -1,7 +1,7 @@
 # Phase 2 PRD — HKUST-1 MOF Editor
 
-> Status: Planning
-> Last updated: 2026-04-04
+> Status: Phase 2a COMPLETE — 2b, 2c, 2d in planning
+> Last updated: 2026-04-05
 
 ---
 
@@ -114,16 +114,17 @@ The editor must remain interactive at 5,000+ atoms with no frame drops during ro
 
 ## Phasing
 
-### Phase 2a — Modularization (no rendering change)
+### Phase 2a — Modularization ✅ COMPLETE
+
 Split `app.js` into ES6 modules. App behaviour is identical. This is a pure refactor — no new features, no rendering changes.
 
 Deliverables:
-- `app/state.js`
-- `app/math3d.js`
-- `app/renderer.js` (still Canvas 2D)
-- `app/ui.js`
-- `app/index.js` (entry point / wiring)
-- All existing tests pass; app works identically in browser
+- `app/state.js` ✅
+- `app/math3d.js` ✅
+- `app/renderer.js` (Canvas 2D) ✅
+- `app/ui.js` ✅
+- `app/index.js` (entry point / wiring) ✅
+- App works identically in browser ✅
 
 ### Phase 2b — WebGL Renderer
 Replace `renderer.js` (Canvas 2D) with a Three.js renderer. All other modules remain unchanged.
