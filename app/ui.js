@@ -195,9 +195,10 @@ export function updateModePill() {
 
 export function updateSelUI() {
     const bar = document.getElementById('sel-bar'), chips = document.getElementById('sel-chips');
-    const pb  = document.getElementById('sel-plane'), gi = document.getElementById('geom-info');
+    const pb  = document.getElementById('sel-plane');
+    const selStatus = document.getElementById('status-sel');
     if (app.currentMode !== 'poly' && app.currentMode !== 'move') {
-        bar.classList.remove('vis'); gi.style.display = 'none'; return;
+        bar.classList.remove('vis'); selStatus.textContent = ''; return;
     }
     if (app.currentMode === 'poly') {
         bar.classList.add('vis'); chips.innerHTML = '';
@@ -210,9 +211,8 @@ export function updateSelUI() {
         document.getElementById('sel-label').textContent = app.selectedAtoms.length < 3 ? `Select ${3 - app.selectedAtoms.length} more:` : 'Atoms:';
         pb.style.display = app.selectedAtoms.length >= 3 ? '' : 'none';
         if (app.selectedAtoms.length >= 3) {
-            gi.style.display = 'block';
-            gi.textContent = math.describeGeom(app.selectedAtoms, id => app.atomById.get(id));
-        } else gi.style.display = 'none';
+            selStatus.textContent = math.describeGeom(app.selectedAtoms, id => app.atomById.get(id)) + ` (${app.selectedAtoms.length} atoms)`;
+        } else selStatus.textContent = '';
     }
     if (app.currentMode === 'move') {
         if (app.editSelected.length > 0) {
@@ -226,8 +226,8 @@ export function updateSelUI() {
                 chips.appendChild(c);
             });
             document.getElementById('sel-label').textContent = 'Selected:';
-            pb.style.display = 'none'; gi.style.display = 'none';
-        } else { bar.classList.remove('vis'); gi.style.display = 'none'; }
+            pb.style.display = 'none'; selStatus.textContent = '';
+        } else { bar.classList.remove('vis'); selStatus.textContent = ''; }
     }
 }
 
@@ -806,34 +806,39 @@ function onMouseMove(e) {
     if (hit) {
         app.hoveredAtom = hit.id; app.hoveredBond = -1;
         const info = getNAME(hit.role) || [hit.t, ''];
-        let html = `<div class="en">${info[0]||hit.t} #${hit.id}</div>`;
-        if (info[1]) html += `<div class="ed">${info[1]}</div>`;
-        tip.innerHTML = html; tip.style.opacity = '1';
+        tip.innerHTML = `<div class="en">${info[0]||hit.t} #${hit.id}</div>`;
+        tip.style.opacity = '1';
         let tx = mx+14, ty = my-10;
         if (tx + 180 > rect.width) tx = mx-120; if (ty < 0) ty = 10;
         tip.style.left = tx+'px'; tip.style.top = ty+'px';
+        const parts = [`${info[0]||hit.t} #${hit.id}`];
+        if (info[1]) parts.push(info[1]);
+        parts.push(`(${hit.x.toFixed(3)}, ${hit.y.toFixed(3)}, ${hit.z.toFixed(3)}) Å`);
+        document.getElementById('status-hover').textContent = parts.join(' · ');
     } else if (hBond >= 0) {
         app.hoveredAtom = null; app.hoveredBond = hBond;
         const b = app.bonds[hBond];
         const a1 = app.atomById.get(b.a), a2 = app.atomById.get(b.b);
         if (a1 && a2) {
-            tip.innerHTML = `<div class="en">Bond: ${a1.t}#${a1.id} — ${a2.t}#${a2.id}</div>`;
+            tip.innerHTML = `<div class="en">${a1.t}#${a1.id} – ${a2.t}#${a2.id}</div>`;
             tip.style.opacity = '1';
             let tx = mx+14, ty = my-10;
             if (tx+180 > rect.width) tx = mx-150; if (ty < 0) ty = 10;
             tip.style.left = tx+'px'; tip.style.top = ty+'px';
+            const len = math.v3dist([a1.x,a1.y,a1.z],[a2.x,a2.y,a2.z]);
+            document.getElementById('status-hover').textContent = `Bond ${a1.t}#${a1.id} – ${a2.t}#${a2.id} · ${len.toFixed(3)} Å`;
         }
     } else if (hCav) {
         app.hoveredAtom = null; app.hoveredBond = -1;
-        tip.innerHTML = `<div class="en">Cavity #${hCav.cavityId}</div>` +
-            `<div class="ed">Radius: ${hCav.r.toFixed(2)}Å</div>` +
-            `<div class="ed">Center: [${hCav.cx.toFixed(1)}, ${hCav.cy.toFixed(1)}, ${hCav.cz.toFixed(1)}]</div>`;
+        tip.innerHTML = `<div class="en">Cavity #${hCav.cavityId}</div>`;
         tip.style.opacity = '1';
         let tx = mx+14, ty = my-10;
         if (tx+180 > rect.width) tx = mx-150; if (ty < 0) ty = 10;
         tip.style.left = tx+'px'; tip.style.top = ty+'px';
+        document.getElementById('status-hover').textContent = `Cavity #${hCav.cavityId} · r = ${hCav.r.toFixed(2)} Å · center (${hCav.cx.toFixed(2)}, ${hCav.cy.toFixed(2)}, ${hCav.cz.toFixed(2)}) Å`;
     } else {
         tip.style.opacity = '0';
+        document.getElementById('status-hover').textContent = '';
     }
 
     let cursor = 'grab';
@@ -854,6 +859,7 @@ function onMouseLeave() {
     app.hoveredAtom = null; app.hoveredAxisIdx = -1; app.hoveredBond = -1;
     document.getElementById('tip').style.opacity = '0';
     document.getElementById('axis-tip').style.opacity = '0';
+    document.getElementById('status-hover').textContent = '';
     draw();
 }
 

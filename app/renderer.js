@@ -503,8 +503,8 @@ export function draw() {
         });
     }
 
-    /* ── Multi-HUD: bond lengths + bond angles ── */
-    if (currentMX !== -1000 && currentMY !== -1000 && !dragging && !editDragging) {
+    /* ── Multi-HUD: bond lengths + bond angles (view mode only) ── */
+    if (currentMode === 'view' && currentMX !== -1000 && currentMY !== -1000 && !dragging && !editDragging) {
         const mx=currentMX, my=currentMY;
         /* Bond lengths */
         bonds.forEach(b => {
