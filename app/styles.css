@@ -830,6 +830,14 @@ input[type=checkbox] { accent-color: var(--accent); }
 ::-webkit-scrollbar-thumb { background: var(--brd2); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--txt3); }
 
+/* ── Body scroll lock (when modal open) ──────────────────── */
+body.modal-open {
+    overflow: hidden;
+    /* Prevent iOS Safari from scrolling the page behind the modal */
+    position: fixed;
+    width: 100%;
+}
+
 /* ── Mobile stats toggle button ───────────────────────────── */
 #mobile-stats-toggle {
     display: none;

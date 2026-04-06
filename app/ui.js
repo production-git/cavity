@@ -331,7 +331,10 @@ export function buildElemPalette() {
 export function openExport() {
     document.getElementById('export-name').value = '';
     document.getElementById('modal-export').classList.add('open');
-    setTimeout(() => document.getElementById('export-name').focus(), 80);
+    document.body.classList.add('modal-open');
+    if (!('ontouchstart' in window)) {
+        setTimeout(() => document.getElementById('export-name').focus(), 80);
+    }
 }
 
 export function doExport() {
@@ -363,6 +366,7 @@ export async function openImport() {
     document.getElementById('import-status').textContent = '';
     document.getElementById('import-status').classList.remove('show');
     document.getElementById('modal-import').classList.add('open');
+    document.body.classList.add('modal-open');
 
     document.getElementById('file-input').onchange = function(e) {
         const file = e.target.files[0]; if (!file) return;
@@ -400,6 +404,7 @@ export async function deleteSaved(name) {
 
 export function closeModals() {
     document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
+    document.body.classList.remove('modal-open');
 }
 
 export function toggleMobileStats() {
@@ -466,6 +471,7 @@ export function openCustomElem() {
     document.getElementById('ce-sym').value = '';
     document.getElementById('ce-name').value = '';
     document.getElementById('modal-elem').classList.add('open');
+    document.body.classList.add('modal-open');
 }
 
 export function addCustomElem() {
