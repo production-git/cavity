@@ -428,7 +428,7 @@ export function draw() {
             else if (inF&&anyGroup) { ctx.strokeStyle=dark?'rgba(255,255,255,0.3)':'rgba(0,0,0,0.18)'; ctx.lineWidth=1.5; ctx.stroke(); }
             ctx.restore();
             if (showLabels) {
-                ctx.save(); ctx.font='500 9px "DM Sans",sans-serif';
+                ctx.save(); ctx.font='500 9px "Syne",sans-serif';
                 ctx.fillStyle=dark?'rgba(255,255,255,0.6)':'rgba(0,0,0,0.5)';
                 ctx.textAlign='center'; ctx.textBaseline='bottom';
                 ctx.fillText(a.t,a.sx,a.sy-r-2); ctx.restore();
@@ -561,9 +561,9 @@ export function draw() {
     }
 
     /* ── Header text ── */
-    ctx.font='600 12px "DM Sans",sans-serif'; ctx.fillStyle=dark?'#bbb':'#555'; ctx.textAlign='center';
+    ctx.font='700 12px "Syne",sans-serif'; ctx.fillStyle=dark?'#c87533':'#b5651d'; ctx.textAlign='center';
     ctx.fillText(app.structureName, w/2, 20);
-    ctx.font='400 10px "DM Sans",sans-serif'; ctx.fillStyle=dark?'#777':'#aaa';
+    ctx.font='400 10px "Syne",sans-serif'; ctx.fillStyle=dark?'#3a4d78':'#9aaace';
     let mt='Drag to rotate · scroll to zoom';
     if (currentMode==='move') mt='Move: Click atoms to select. 1st atom sets axes. 2nd atom enables Rotation handles.';
     else if (currentMode==='poly') mt='Select: click atoms to form polyhedron';

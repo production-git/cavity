@@ -402,6 +402,14 @@ export function closeModals() {
     document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
 }
 
+export function toggleMobileStats() {
+    const panel = document.getElementById('top-left-panel');
+    const btn = document.getElementById('mobile-stats-toggle');
+    const isVisible = panel.classList.toggle('mobile-visible');
+    btn.classList.toggle('active', isVisible);
+    btn.textContent = isVisible ? '× Stats' : '◈ Stats';
+}
+
 const DEFAULT_STRUCTURE_NAME = '';
 
 function setStructureName(name) {
@@ -549,7 +557,7 @@ export function exportPNG() {
     off.width  = canvas.width;
     off.height = canvas.height;
     const offCtx = off.getContext('2d');
-    offCtx.fillStyle = app.dark ? '#1f2937' : '#f9f9fa';
+    offCtx.fillStyle = app.dark ? '#0b1022' : '#f6f7fb';
     offCtx.fillRect(0, 0, off.width, off.height);
     offCtx.drawImage(canvas, 0, 0);
     const link = document.createElement('a');

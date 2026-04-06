@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cavity</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -17,7 +20,7 @@
             <div class="title">Cavity</div>
         </div>
         <div class="actions">
-            <div
+            <div id="undo-redo-group"
                 style="display:flex; background:var(--bg2); border-radius:var(--r); border:.5px solid var(--brd); overflow:hidden; margin-right:4px;">
                 <button class="btn sm" id="btn-undo" onclick="undo()"
                     style="border:none; border-right:.5px solid var(--brd); border-radius:0; padding:6px 10px;"
@@ -34,6 +37,7 @@
     <div class="wrap" style="height: calc(100vh - 66px);">
         <canvas id="mol" style="height: 100%; border: none; border-radius: 6px;" role="application"
             aria-label="Interactive 3D MOF Editor Canvas"></canvas>
+        <button id="mobile-stats-toggle" onclick="toggleMobileStats()" aria-label="Toggle stats panel">◈ Stats</button>
         <div id="tip" role="tooltip" aria-hidden="true"></div>
         <div id="mode-pill" aria-live="polite"><span class="dot"></span><span class="mode-text"></span></div>
         <div id="axis-tip" aria-hidden="true"></div>

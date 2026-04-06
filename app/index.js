@@ -23,7 +23,7 @@ import {
     openCustomElem, addCustomElem,
     setPlane, commitPreset, setView,
     resetStructure, exportPNG,
-    afterUndoRedo,
+    afterUndoRedo, toggleMobileStats,
 } from './ui.js';
 import { undo, redo } from './state.js';
 
@@ -69,6 +69,7 @@ window.commitPreset  = commitPreset;
 window.setView       = setView;
 window.resetStructure = resetStructure;
 window.exportPNG     = exportPNG;
+window.toggleMobileStats = toggleMobileStats;
 
 /* ══════════════════════════════════════════════════════════
    INITIAL STATE
