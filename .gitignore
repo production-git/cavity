@@ -1,2 +1,10 @@
 .DS_Store
 .vscode/
+.claude/
+.mcp.json
+.opencode.json
+.cursorrules
+.windsurfrules
+.code-review-graphignore
+GEMINI.md
+AGENTS.md
