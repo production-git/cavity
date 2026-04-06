@@ -921,6 +921,7 @@ function onKeyDown(e) {
         const sel = [...(app.currentMode === 'move' ? app.editSelected : app.selectedAtoms)];
         if (sel.length > 0) {
             sel.forEach(id => deleteAtom(id, true));
+            app.currentAxes = app.editSelected.length ? computeEditAxes(app.editSelected) : [];
             updateStats(); updateSelUI(); updateLegend(); draw();
             saveState(); updateUndoRedoUI();
         }
