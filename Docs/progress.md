@@ -11,3 +11,8 @@
 **2026-04-04:** PNG export, depth fog toggle, supercell tiling with ghost atoms.
 
 **2026-04-05:** Cavity detection (carbon ring normal convergence, 7 spheres for HKUST-1). Docs reorganised into `application_design.md`, `progress.md`, `phase-2/`, `feature_plans/`.
+
+## Phase 0 — Bug Sprint (2026-04-06)
+
+- **0.1 Fixed:** JSON import now preserves atom IDs from file (`a.id`), keeping bond references valid after round-trip. Previously atoms got sequential IDs on load, breaking any bonds referencing IDs from structures with deletions (`Cannot read properties of undefined (reading 'x')`). (`state.js::loadStructureFromJSON`)
+- **0.2 Fixed:** Removed `buildDefault()` entirely from `state.js`. Startup and reset now `fetch` from `app/model/HKUST-1-Cu-2BTC-4.json`. Added `app/serve.py` (no-cache dev server) to prevent stale module cache after edits. (`state.js`, `index.js`, `ui.js::resetStructure`)

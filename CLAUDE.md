@@ -2,9 +2,9 @@
 
 ## Run the app
 
-ES6 modules require HTTP (Chrome blocks `file://`):
+Use the no-cache dev server (prevents stale module cache after edits):
 ```bash
-python3 -m http.server 8080 --directory app
+python3 app/serve.py
 # open http://localhost:8080/
 ```
 

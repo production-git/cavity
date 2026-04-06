@@ -151,35 +151,6 @@ export function B(a, b, d) {
     app.drawGroupsCache = null;
 }
 
-export function buildDefault() {
-    app.atoms = []; app.bonds = []; app.aid = 0;
-    app.atomById = new Map(); app.structureVersion++; app.drawGroupsCache = null;
-    const CuCu = 1.31;
-    const cu1 = A(0,0,CuCu,'Cu','Cu','cu-o'), cu2 = A(0,0,-CuCu,'Cu','Cu','cu-o');
-    B(cu1, cu2, true);
-    [[1,0],[0,1],[-1,0],[0,-1]].forEach(([dx,dy]) => {
-        const R=0.98, sep=0.52;
-        const o1 = A(dx*R,dy*R,sep,'O','O_bridge','cu-o'), o2 = A(dx*R,dy*R,-sep,'O','O_bridge','cu-o');
-        B(cu1,o1); B(cu2,o2);
-        const cc = A(dx*1.55,dy*1.55,0,'C','C_carb','carb'); B(o1,cc); B(o2,cc);
-        const ringR=2.65, rcx=dx*ringR, rcy=dy*ringR, tx=-dy, ty=dx, rr=0.7, rIds=[];
-        for (let j=0;j<6;j++) { const a=j*Math.PI/3+Math.PI/6; rIds.push(A(rcx+rr*Math.cos(a)*tx, rcy+rr*Math.cos(a)*ty, rr*Math.sin(a),'C','C_arom','ring')); }
-        for (let j=0;j<6;j++) B(rIds[j],rIds[(j+1)%6]);
-        B(cc,rIds[0]);
-        [2,4].forEach(pos => {
-            const ca = app.atoms[rIds[pos]];
-            const ox=ca.x-rcx, oy=ca.y-rcy, oz=ca.z;
-            const nm=Math.sqrt(ox*ox+oy*oy+oz*oz)||1, nx=ox/nm, ny=oy/nm, nz=oz/nm, ext=1.25;
-            const ec = A(ca.x+nx*ext, ca.y+ny*ext, ca.z+nz*ext,'C','C_carb','carb');
-            B(rIds[pos], ec);
-            const cx2=ny, cy2=-nx, cz2=0, cn=Math.sqrt(cx2*cx2+cy2*cy2+cz2*cz2)||1, s=0.58;
-            const eo1 = A(ca.x+nx*(ext+0.6)+cx2/cn*s, ca.y+ny*(ext+0.6)+cy2/cn*s, ca.z+nz*(ext+0.6)+cz2/cn*s,'O','O_term','');
-            const eo2 = A(ca.x+nx*(ext+0.6)-cx2/cn*s, ca.y+ny*(ext+0.6)-cy2/cn*s, ca.z+nz*(ext+0.6)-cz2/cn*s,'O','O_term','');
-            B(ec,eo1); B(ec,eo2);
-        });
-    });
-}
-
 /* ══════════════════════════════════════════════════════════
    UNDO / REDO
    ══════════════════════════════════════════════════════════ */
@@ -714,11 +685,15 @@ export function serializeStructure(name) {
     }, null, 2);
 }
 
-export function loadStructureFromJSON(jsonStr) {
-    const d = JSON.parse(jsonStr);
+export function loadStructureFromJSON(input) {
+    const d = (typeof input === 'string') ? JSON.parse(input) : input;
     if (!d.atoms || !d.bonds) throw new Error('Invalid file');
     app.atoms=[]; app.bonds=[]; app.aid=0;
-    d.atoms.forEach(a => { app.atoms.push({x:a.x,y:a.y,z:a.z,t:a.t,role:a.role||a.t,plane:a.plane||'',id:app.aid++}); });
+    d.atoms.forEach(a => {
+        const id = (a.id !== undefined) ? a.id : app.aid;
+        app.atoms.push({x:a.x,y:a.y,z:a.z,t:a.t,role:a.role||a.t,plane:a.plane||'',id});
+        if (id >= app.aid) app.aid = id + 1;
+    });
     d.bonds.forEach(b => { app.bonds.push({a:b.a,b:b.b,dashed:!!b.dashed}); });
     rebuildAtomMap();
     if (d.customGroups) app.customGroups=d.customGroups.map(cg=>({ids:cg.ids,color:cg.color,idx:Date.now()}));

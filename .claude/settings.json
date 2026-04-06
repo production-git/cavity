@@ -6,7 +6,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)",
       "Bash(npx skillfish:*)",
-      "WebFetch(domain:mcpmarket.com)"
+      "WebFetch(domain:mcpmarket.com)",
+      "mcp__code-review-graph__get_architecture_overview_tool"
     ]
   },
   "hooks": {

@@ -9,7 +9,7 @@
  *  5. Start the animation loop
  */
 
-import { app, buildDefault, saveState } from './state.js';
+import { app, loadStructureFromJSON, saveState } from './state.js';
 import { init as rendererInit, resize, draw } from './renderer.js';
 import {
     init as uiInit,
@@ -76,14 +76,6 @@ window.exportPNG     = exportPNG;
 // Apply saved theme preference
 document.documentElement.setAttribute('data-theme', app.dark ? 'dark' : 'light');
 
-buildDefault();
-saveState();
-setMode('view');
-buildColorRow();
-updateStats();
-setPlane('none');
-updateUndoRedoUI();
-
 /* ══════════════════════════════════════════════════════════
    ANIMATION LOOP
    ══════════════════════════════════════════════════════════ */
@@ -92,4 +84,14 @@ updateUndoRedoUI();
     requestAnimationFrame(animate);
 })();
 
-draw();
+(async () => {
+    const resp = await fetch('model/HKUST-1-Cu-2BTC-4.json');
+    if (resp.ok) loadStructureFromJSON(await resp.text());
+    saveState();
+    setMode('view');
+    buildColorRow();
+    updateStats();
+    setPlane('none');
+    updateUndoRedoUI();
+    draw();
+})();

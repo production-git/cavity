@@ -14,7 +14,6 @@
 import {
     app, ELEMENTS, PCOLORS, PRESET_COL, AXIS_COLORS, COL,
     getCOL, getNAME,
-    buildDefault,
     saveState, undo, redo,
     getNeighbors, deleteAtom, toggleBond,
     computeEditAxes, computeAddAxes, trySnap,
@@ -500,9 +499,10 @@ export function setView(yD, xD) {
     draw();
 }
 
-export function resetStructure() {
+export async function resetStructure() {
     if (!confirm('Reset to default HKUST-1?')) return;
-    buildDefault();
+    const resp = await fetch('model/HKUST-1-Cu-2BTC-4.json');
+    if (resp.ok) loadStructureFromJSON(await resp.text());
     app.customGroups = [];
     app.angleY    = 35 * Math.PI / 180;
     app.angleX    = 20 * Math.PI / 180;
