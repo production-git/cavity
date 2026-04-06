@@ -889,14 +889,33 @@ function onWheel(e) {
 }
 
 /* ── Touch ── */
+function pinchDist(touches) {
+    return Math.hypot(
+        touches[1].clientX - touches[0].clientX,
+        touches[1].clientY - touches[0].clientY
+    );
+}
+
 function onTouchStart(e) {
     e.preventDefault();
+    if (e.touches.length === 2) {
+        app.dragging = false;
+        app.pinching = true;
+        app.lastPinchDist = pinchDist(e.touches);
+        return;
+    }
+    app.pinching = false;
     app.dragging = true;
     app.lastMX = e.touches[0].clientX; app.lastMY = e.touches[0].clientY;
     app.clickOk = true; app.cx0 = app.lastMX; app.cy0 = app.lastMY;
 }
 
 function onTouchEnd(e) {
+    if (app.pinching) {
+        app.pinching = false;
+        app.dragging = false;
+        return;
+    }
     const wc = app.clickOk && e.changedTouches
         && Math.abs(e.changedTouches[0].clientX - app.cx0) < 10
         && Math.abs(e.changedTouches[0].clientY - app.cy0) < 10;
@@ -908,6 +927,16 @@ function onTouchEnd(e) {
 }
 
 function onTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 2 && app.pinching) {
+        const dist = pinchDist(e.touches);
+        app.zoomVal = Math.max(30, Math.min(160, app.zoomVal * (dist / app.lastPinchDist)));
+        app.lastPinchDist = dist;
+        document.getElementById('zoom').value     = app.zoomVal;
+        document.getElementById('zv').textContent = Math.round(app.zoomVal);
+        draw();
+        return;
+    }
     if (!app.dragging) return;
     app.clickOk = false;
     app.angleY += (e.touches[0].clientX - app.lastMX) * 0.008;
