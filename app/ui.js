@@ -90,8 +90,9 @@ export function init() {
 
     /* ── Touch events ── */
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
-    window.addEventListener('touchend',  onTouchEnd);
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
+    window.addEventListener('touchend',   onTouchEnd);
 
     /* ── Keyboard ── */
     window.addEventListener('keydown', onKeyDown);
@@ -904,22 +905,35 @@ function pinchDist(touches) {
 
 function onTouchStart(e) {
     e.preventDefault();
-    if (e.touches.length === 2) {
+    if (e.touches.length >= 2) {
+        // Entering pinch — reset so onTouchMove initialises cleanly
         app.dragging = false;
-        app.pinching = true;
-        app.lastPinchDist = pinchDist(e.touches);
+        app.pinching = false;        // will be armed on first move
+        app.lastPinchDist = 0;
         return;
     }
     app.pinching = false;
+    app.lastPinchDist = 0;
     app.dragging = true;
     app.lastMX = e.touches[0].clientX; app.lastMY = e.touches[0].clientY;
     app.clickOk = true; app.cx0 = app.lastMX; app.cy0 = app.lastMY;
 }
 
 function onTouchEnd(e) {
-    if (app.pinching) {
+    if (e.touches.length === 0) {
+        const wasPinching = app.pinching;
         app.pinching = false;
+        app.lastPinchDist = 0;
         app.dragging = false;
+        if (wasPinching) { app.clickOk = false; return; }
+    }
+    if (e.touches.length === 1) {
+        // One finger lifted during pinch — transition back to drag
+        app.pinching = false;
+        app.lastPinchDist = 0;
+        app.dragging = true;
+        app.lastMX = e.touches[0].clientX; app.lastMY = e.touches[0].clientY;
+        app.clickOk = false;
         return;
     }
     const wc = app.clickOk && e.changedTouches
@@ -934,8 +948,15 @@ function onTouchEnd(e) {
 
 function onTouchMove(e) {
     e.preventDefault();
-    if (e.touches.length === 2 && app.pinching) {
+    if (e.touches.length >= 2) {
         const dist = pinchDist(e.touches);
+        if (!app.pinching || app.lastPinchDist === 0) {
+            // First move with 2 fingers — arm the pinch
+            app.pinching = true;
+            app.dragging = false;
+            app.lastPinchDist = dist;
+            return;
+        }
         app.zoomVal = Math.max(30, Math.min(160, app.zoomVal * (dist / app.lastPinchDist)));
         app.lastPinchDist = dist;
         document.getElementById('zoom').value     = app.zoomVal;
@@ -943,6 +964,7 @@ function onTouchMove(e) {
         draw();
         return;
     }
+    app.pinching = false;
     if (!app.dragging) return;
     app.clickOk = false;
     app.angleY += (e.touches[0].clientX - app.lastMX) * 0.008;
