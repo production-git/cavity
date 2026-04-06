@@ -719,7 +719,9 @@ export function serializeStructure(name) {
         version:9, name:name||'Unnamed',
         atoms:app.atoms.map(a=>({x:a.x,y:a.y,z:a.z,t:a.t,role:a.role,plane:a.plane,id:a.id})),
         bonds:app.bonds.map(b=>({a:b.a,b:b.b,dashed:b.dashed})),
-        customGroups:app.customGroups.map(cg=>({ids:cg.ids,color:cg.color})),
+        customGroups:app.customGroups.map(cg=> cg.isSphere
+            ? {isSphere:true,cx:cg.cx,cy:cg.cy,cz:cg.cz,r:cg.r,cavityId:cg.cavityId,ids:cg.ids,color:cg.color}
+            : {ids:cg.ids,color:cg.color}),
         elements:ELEMENTS.map(e=>({sym:e.sym,name:e.name,col:e.col,rad:e.rad})),
         viewState:{angleY:app.angleY,angleX:app.angleX,zoomVal:app.zoomVal,atomScale:app.atomScale,faceAlpha:app.faceAlpha,showBonds:app.showBonds,showLabels:app.showLabels,activePlane:app.activePlane,pbcEnabled:app.pbcEnabled,unitCell:app.unitCell},
         timestamp:new Date().toISOString()
@@ -737,7 +739,9 @@ export function loadStructureFromJSON(input) {
     });
     d.bonds.forEach(b => { app.bonds.push({a:b.a,b:b.b,dashed:!!b.dashed}); });
     rebuildAtomMap();
-    if (d.customGroups) app.customGroups=d.customGroups.map(cg=>({ids:cg.ids,color:cg.color,idx:Date.now()}));
+    if (d.customGroups) app.customGroups=d.customGroups.map(cg=> cg.isSphere
+        ? {isSphere:true,cx:cg.cx,cy:cg.cy,cz:cg.cz,r:cg.r,cavityId:cg.cavityId,ids:cg.ids||[],color:cg.color,idx:Date.now()}
+        : {ids:cg.ids,color:cg.color,idx:Date.now()});
     if (d.elements) {
         d.elements.forEach(e => {
             if (!ELEMENTS.find(x=>x.sym===e.sym)) {
