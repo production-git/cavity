@@ -1,7 +1,9 @@
 # Planned Features — Master Tracking
 
-> Last updated: 2026-04-05 (added layer-visibility, advanced-periodic, dft-integration, cif-export, pore-characterization, structural-analysis-panel)
+> Last updated: 2026-04-06
 > For completed features see individual files tagged `Status: COMPLETED`.
+> See [strategy.md](../strategy.md) for positioning and bets | [roadmap.md](../roadmap.md) for phased delivery plan.
+> **Phase naming:** Phase 0 (bugs) → Phase A (architecture: WebGL + BVH + UI) → Phase 1 (editing UX) → Phase 2 (structural intelligence) → Phase 3 (platform) → Phase 4 (DFT viz)
 
 ---
 
@@ -16,17 +18,18 @@
 
 ---
 
-## Phase 2 — Architecture Migration
+## Phase A — Architecture Migration
 
-These are engineering-level improvements with no new user-visible features. See [Docs/phase-2/prd.md](../phase-2/prd.md) for full requirements.
+> Sequenced **after Phase 0 bugs, before Phase 1 features.** Building features on Canvas 2D means rewriting them after WebGL migration. Do not skip.
+> See [Docs/phase-2/prd.md](../phase-2/prd.md) for full requirements.
 
-| Feature | Phase | Status | Notes |
+| Feature | Track | Status | Notes |
 |---------|-------|--------|-------|
-| ES6 module split | 2a | **Completed** | state / renderer / ui / math3d |
-| WebGL renderer (Three.js) | 2b | Planned | True 3D spheres, real lighting, no painter artifacts |
-| Sub-linear hit testing (BVH) | 2c | Planned | O(log N); required at 5,000+ atoms |
-| GC-free render loop | 2c | Planned | Pre-allocated projMap + drawList |
-| Glassmorphism UI redesign | 2d | Planned | Full-bleed canvas, floating panels, dark-first |
+| ES6 module split | A0 (was 2a) | **Completed** | state / renderer / ui / math3d |
+| WebGL renderer (Three.js) | A1 | Planned | True 3D spheres, real lighting, no painter artifacts |
+| Sub-linear hit testing (BVH) | A2 | Planned | O(log N); required at 5,000+ atoms; parallel with A1 |
+| GC-free render loop | A2 | Planned | Pre-allocated projMap + drawList; parallel with A1 |
+| Glassmorphism UI redesign | A3 | Planned | Full-bleed canvas, floating panels, dark-first; parallel with A1/A2 |
 
 ---
 
