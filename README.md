@@ -1,41 +1,42 @@
-# HKUST-1 MOF Structure Editor
+# MOF Structure Editor
 
-A zero-dependency, single-page browser tool for interactively visualising and editing Metal-Organic Framework (MOF) crystal structures. HKUST-1 (Cu₂(BTC)₄) is the primary reference system.
+A zero-dependency, browser-based tool for interactively visualising and editing Metal-Organic Framework (MOF) crystal structures. HKUST-1 (Cu₂(BTC)₄) is the primary reference system.
 
-Runs entirely client-side — no build step, no server required.
+**No build step. No server. Runs entirely in the browser.**
+
+[**Try it live →**](https://production-git.github.io/cavity/)
 
 ---
 
 ## Quick Start
 
 ```bash
-# Python (built-in)
+git clone https://github.com/production-git/cavity.git
+cd cavity
 python3 app/serve.py
-# then open: http://localhost:8080/
-
-# Node
-npx serve app
 ```
 
-Safari and Firefox can open `app/index.html` directly via `file://`.
+Open [http://localhost:8080](http://localhost:8080)
+
+> **Why `serve.py`?** It disables browser caching so edits to JS/CSS are picked up immediately. You can also use `npx serve app` or open `app/index.html` directly in Safari/Firefox via `file://`.
 
 ---
 
 ## Project Structure
 
 ```
-app/           — Browser application (ES6 modules)
-  index.html   — UI layout
-  index.js     — Entry point
-  state.js     — All app state (atoms, bonds, undo/redo, CIF/JSON I/O)
-  renderer.js  — Canvas 2D rendering and hit testing
-  ui.js        — DOM events, modals, UI updates
-  math3d.js    — Pure vector/geometry math
-  styles.css   — CSS variables and component styles
+app/
+  index.html    — UI layout
+  index.js      — Entry point, animation loop
+  state.js      — App state, undo/redo, CIF/JSON I/O, cavity detection
+  renderer.js   — Canvas 2D drawing and hit testing
+  ui.js         — DOM events, modals, UI updates
+  math3d.js     — Pure vector/geometry math (no side-effects)
+  styles.css    — CSS variables and component styles
 
-models/        — JSON model files and source CIF files
-scripts/       — Python CIF converter and tests
-Docs/          — Project documentation
+models/         — JSON model files and source CIF files
+scripts/        — CIF → JSON converter and tests
+Docs/           — Architecture, roadmap, feature plans
 ```
 
 ---
@@ -43,7 +44,7 @@ Docs/          — Project documentation
 ## Scripts
 
 ```bash
-# Convert CIF to JSON
+# Convert a CIF file to the app's JSON format
 python scripts/cif_to_json.py <input.cif> <output.json>
 
 # Run converter tests
@@ -52,16 +53,41 @@ cd scripts && python -m unittest test_cif_to_json -v
 
 ---
 
-## Documentation
+## What's Coming
 
-| Doc | Description |
-|-----|-------------|
-| [Docs/application_design.md](Docs/application_design.md) | Architecture, modules, data model, rendering pipeline |
-| [Docs/progress.md](Docs/progress.md) | Version history and progress log |
-| [Docs/phase-2/prd.md](Docs/phase-2/prd.md) | Phase 2 product requirements (WebGL, performance, UI redesign) |
-| [Docs/phase-2/design.md](Docs/phase-2/design.md) | Phase 2 technical design |
-| [Docs/feature_plans/planned-features.md](Docs/feature_plans/planned-features.md) | Master feature tracking (all planned + backlog) |
-| [Docs/feature_plans/](Docs/feature_plans/) | Individual feature plans |
+### Phase A — Architecture (Next)
+Replacing the Canvas 2D renderer with **Three.js** for true 3D rendering, alongside a full UI redesign and sub-linear hit testing.
+
+- Real 3D spheres with lighting and depth-correct rendering
+- BVH spatial index — O(log N) hit testing at 5,000+ atoms
+- Glassmorphism UI — full-bleed canvas, floating panels, dark-first theme
+
+### Phase 1 — Editing UX
+Making structural editing actually useful for research.
+
+- Infinite pan navigation
+- Precision bond length + angle editor
+- Bulk atom selection and group operations
+
+### Phase 2 — Structural Intelligence
+Making structures explain themselves.
+
+- Structural analysis panel — bond stats, coordination numbers, geometry
+- Geometric pore characterisation — surface area, pore size distribution
+- CIF export — round-trip compatible with VESTA and iRASPA
+
+### Phase 3 — Platform Features
+Competing with desktop tools on capability.
+
+- Animation export — rotation GIF / WebM
+- Molecule library with curated presets beyond HKUST-1
+- Doping simulation and guest molecule interactions
+
+### Phase 4 — Advanced Visualisation
+Research-grade volumetric data rendering.
+
+- DFT electron density and ESP isosurfaces
+- Band structure visualisation
 
 ---
 
@@ -69,9 +95,20 @@ cd scripts && python -m unittest test_cif_to_json -v
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| Phase 1 | Monolithic canvas editor with all core features | Complete |
-| Phase 2a | ES6 module split (state / renderer / ui / math3d) | **Complete** |
-| Phase 2b | WebGL renderer (Three.js) | Planning |
-| Phase 2c | Sub-linear hit testing (BVH), GC-free render loop | Planning |
-| Phase 2d | Glassmorphism UI redesign, full-bleed canvas | Planning |
-| Phase 3 | New user-facing features (measurement, export, animation) | Backlog |
+| Phase 0 | Bug sprint — stability and round-trip I/O | **Complete** |
+| Phase A | WebGL renderer, BVH hit testing, UI redesign | Planning |
+| Phase 1 | Editing UX — pan, precision editor, bulk select | Backlog |
+| Phase 2 | Structural intelligence — analysis, pore metrics, CIF export | Backlog |
+| Phase 3 | Platform features — animation, molecule library, doping | Backlog |
+| Phase 4 | Advanced visualisation — DFT isosurfaces, band structure | Backlog |
+
+---
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [Docs/application_design.md](Docs/application_design.md) | Architecture, modules, data model, rendering pipeline |
+| [Docs/roadmap.md](Docs/roadmap.md) | Full phased roadmap with exit criteria |
+| [Docs/progress.md](Docs/progress.md) | Changelog |
+| [Docs/feature_plans/planned-features.md](Docs/feature_plans/planned-features.md) | Master feature tracking |
