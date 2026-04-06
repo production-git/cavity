@@ -731,7 +731,7 @@ export function serializeStructure(name) {
 export function loadStructureFromJSON(input) {
     const d = (typeof input === 'string') ? JSON.parse(input) : input;
     if (!d.atoms || !d.bonds) throw new Error('Invalid file');
-    app.atoms=[]; app.bonds=[]; app.aid=0;
+    app.atoms=[]; app.bonds=[]; app.aid=0; app.customGroups=[];
     d.atoms.forEach(a => {
         const id = (a.id !== undefined) ? a.id : app.aid;
         app.atoms.push({x:a.x,y:a.y,z:a.z,t:a.t,role:a.role||a.t,plane:a.plane||'',id});

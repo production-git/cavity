@@ -90,6 +90,7 @@ document.documentElement.setAttribute('data-theme', app.dark ? 'dark' : 'light')
     saveState();
     setMode('view');
     buildColorRow();
+    updateLegend();
     updateStats();
     setPlane('none');
     updateUndoRedoUI();
