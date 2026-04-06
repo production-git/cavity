@@ -629,6 +629,7 @@ function onMouseUp(e) {
             draw();
         } else {
             app.editDragging = false; app.editAxis = null; app.editDragStart = null;
+            app.activeSnapGuides = [];
             canvas.style.cursor = app.currentMode === 'view' ? 'grab' : 'crosshair';
             document.getElementById('axis-tip').style.opacity = '0';
             document.getElementById('snap-indicator').style.opacity = '0';

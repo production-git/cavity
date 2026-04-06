@@ -526,36 +526,74 @@ export function computeAddAxes(id) {
 
 export function trySnap(movingId, pos, axDir) {
     if (!app.snapEnabled) return { pos, snapped:false };
-    const THRESH = 0.15;
-    const nbrs = getNeighbors(movingId);
-    let bestDist=THRESH, snapVal=null, snapAxis=null, snapLabel='', snapGuide=null;
-    ['x','y','z'].forEach((ax,i) => {
+    const THRESH = 0.05;
+
+    // All atoms within 5Å, capped at 12 nearest for performance
+    const refAtoms = app.atoms
+        .filter(a => a.id !== movingId && math.v3dist([a.x,a.y,a.z], pos) < 5.0)
+        .sort((a,b) => math.v3dist([a.x,a.y,a.z], pos) - math.v3dist([b.x,b.y,b.z], pos))
+        .slice(0, 12);
+
+    let best = { dist: THRESH, snap: null };
+
+    // Propose axis-aligned snap: match one coordinate, project along axDir
+    function tryAxis(target, i, label, guideEnd) {
         if (!axDir || Math.abs(axDir[i]) < 0.01) return;
-        const checkSnap = (target, label, targetPos) => {
-            const diff = target - pos[i];
-            if (Math.abs(diff) < THRESH && Math.abs(diff) < bestDist) {
-                bestDist = Math.abs(diff); snapAxis = i; snapLabel = label;
-                let p2 = [...pos]; p2[i] = target;
-                snapGuide = [pos, targetPos || p2]; snapVal = diff;
-            }
-        };
-        checkSnap(0, ax+'=0 plane');
-        nbrs.forEach(nid => {
-            const n = app.atomById.get(nid); if (!n) return;
-            checkSnap(n[ax], 'coplanar with '+n.t+'#'+nid, [n.x,n.y,n.z]);
-            getNeighbors(nid).filter(id => id !== movingId).forEach(nnid => {
-                const nn = app.atomById.get(nnid); if (!nn) return;
-                checkSnap(nn[ax], 'aligned with '+nn.t+'#'+nnid, [nn.x,nn.y,nn.z]);
-            });
-        });
-    });
-    if (snapAxis !== null) {
-        const deltaT = snapVal / axDir[snapAxis];
-        const snapped = [pos[0]+axDir[0]*deltaT, pos[1]+axDir[1]*deltaT, pos[2]+axDir[2]*deltaT];
-        if (snapGuide) snapGuide[0] = snapped;
-        return { pos:snapped, snapped:true, label:snapLabel, guide:snapGuide };
+        const diff = target - pos[i];
+        if (Math.abs(diff) >= best.dist) return;
+        const t = diff / axDir[i];
+        const snapped = [pos[0]+axDir[0]*t, pos[1]+axDir[1]*t, pos[2]+axDir[2]*t];
+        const p2 = [...pos]; p2[i] = target;
+        best = { dist: Math.abs(diff), snap: { pos: snapped, label, guide: [snapped, guideEnd || p2] } };
     }
-    return { pos, snapped:false };
+
+    // Propose 3D plane snap: normal N through point P, project pos onto plane along axDir
+    function tryPlane(N, P, label, guideEnd) {
+        const Nn = math.v3norm(N);
+        const denom = math.v3dot(axDir, Nn);
+        if (Math.abs(denom) < 0.05) return; // drag nearly parallel to plane — skip
+        const dist = Math.abs(math.v3dot(math.v3sub(pos, P), Nn));
+        if (dist >= best.dist) return;
+        const t = -math.v3dot(math.v3sub(pos, P), Nn) / denom;
+        const snapped = math.v3add(pos, math.v3scale(axDir, t));
+        best = { dist, snap: { pos: snapped, label, guide: [snapped, guideEnd || P] } };
+    }
+
+    // 1. Axis-aligned: origin planes, coplanar with each nearby atom, midpoints of all pairs
+    ['x','y','z'].forEach((ax, i) => {
+        tryAxis(0, i, ax + '=0 plane');
+        refAtoms.forEach(n => tryAxis(n[ax], i, 'coplanar ' + n.t + '#' + n.id, [n.x,n.y,n.z]));
+        for (let j = 0; j < refAtoms.length; j++) {
+            for (let k = j+1; k < refAtoms.length; k++) {
+                const A = refAtoms[j], B = refAtoms[k];
+                tryAxis((A[ax]+B[ax])/2, i, 'midpoint ' + A.t+'#'+A.id + '–' + B.t+'#'+B.id);
+            }
+        }
+    });
+
+    // 2. Best-fit plane of all nearby atoms ("plane of nearby atoms")
+    if (refAtoms.length >= 2) {
+        const pts = refAtoms.map(a => [a.x, a.y, a.z]);
+        const cen = pts.reduce((s,p) => math.v3add(s,p), [0,0,0]).map(v => v/pts.length);
+        let N = [0,0,0];
+        for (let j = 0; j < pts.length-1; j++)
+            N = math.v3add(N, math.v3cross(math.v3sub(pts[j], cen), math.v3sub(pts[j+1], cen)));
+        if (math.v3len(N) > 0.01) tryPlane(N, cen, 'plane of nearby atoms', cen);
+    }
+
+    // 3. Equidistant from each pair (perpendicular bisector plane)
+    for (let j = 0; j < refAtoms.length; j++) {
+        for (let k = j+1; k < refAtoms.length; k++) {
+            const A = refAtoms[j], B = refAtoms[k];
+            const mid = math.v3scale(math.v3add([A.x,A.y,A.z],[B.x,B.y,B.z]), 0.5);
+            const N = math.v3sub([B.x,B.y,B.z],[A.x,A.y,A.z]);
+            if (math.v3len(N) < 0.1) continue;
+            tryPlane(N, mid, 'equidistant ' + A.t+'#'+A.id + ' & ' + B.t+'#'+B.id, mid);
+        }
+    }
+
+    if (best.snap) return { ...best.snap, snapped: true };
+    return { pos, snapped: false };
 }
 
 /* ══════════════════════════════════════════════════════════

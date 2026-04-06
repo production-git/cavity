@@ -373,10 +373,12 @@ export function draw() {
             ctx.setLineDash([]); ctx.restore(); break;
         }
         case 'guide': {
-            ctx.save(); ctx.setLineDash([4,4]);
+            const dx=d.p2.sx-d.p1.sx, dy=d.p2.sy-d.p1.sy;
+            if (dx*dx+dy*dy < 4) break; // skip zero-length guides
+            ctx.save();
             ctx.beginPath(); ctx.moveTo(d.p1.sx,d.p1.sy); ctx.lineTo(d.p2.sx,d.p2.sy);
-            ctx.strokeStyle=varColor('--amber'); ctx.lineWidth=1; ctx.stroke();
-            ctx.setLineDash([]); ctx.restore(); break;
+            ctx.strokeStyle='#FFB300'; ctx.lineWidth=2; ctx.globalAlpha=0.85; ctx.stroke();
+            ctx.restore(); break;
         }
         case 'bond': {
             const {a1,a2,dashed,isCu,ai,bi,bIndex} = d;
