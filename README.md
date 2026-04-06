@@ -8,11 +8,9 @@ Runs entirely client-side — no build step, no server required.
 
 ## Quick Start
 
-ES6 modules require HTTP (Chrome blocks `file://` due to CORS). Start a local server:
-
 ```bash
 # Python (built-in)
-python3 -m http.server 8080 --directory app
+python3 app/serve.py
 # then open: http://localhost:8080/
 
 # Node
