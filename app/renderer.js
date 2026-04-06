@@ -562,7 +562,7 @@ export function draw() {
 
     /* ── Header text ── */
     ctx.font='600 12px "DM Sans",sans-serif'; ctx.fillStyle=dark?'#bbb':'#555'; ctx.textAlign='center';
-    ctx.fillText('HKUST-1 paddle-wheel SBU', w/2, 20);
+    ctx.fillText(app.structureName, w/2, 20);
     ctx.font='400 10px "DM Sans",sans-serif'; ctx.fillStyle=dark?'#777':'#aaa';
     let mt='Drag to rotate · scroll to zoom';
     if (currentMode==='move') mt='Move: Click atoms to select. 1st atom sets axes. 2nd atom enables Rotation handles.';

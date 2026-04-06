@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+
+    <!-- Annular shadow: transparent void in center, dark only at the rim -->
+    <!-- This makes the ring look like a 3D hollow tube viewed from above -->
+    <radialGradient id="poreDepth" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
+      <stop offset="71%"  stop-color="#000" stop-opacity="0"/>
+      <stop offset="87%"  stop-color="#000" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.18"/>
+    </radialGradient>
+
+    <!-- Inner-wall highlight: faint light in the top of the hollow (light from above) -->
+    <radialGradient id="caveHighlight" cx="50%" cy="22%" r="52%">
+      <stop offset="0%"   stop-color="#fff" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Cu atom: copper-red sphere -->
+    <radialGradient id="cuGrad" cx="34%" cy="28%" r="62%">
+      <stop offset="0%"   stop-color="#ff8060"/>
+      <stop offset="42%"  stop-color="#be2e1c"/>
+      <stop offset="100%" stop-color="#6a0f08"/>
+    </radialGradient>
+
+    <!-- O atom: oxygen blue sphere -->
+    <radialGradient id="oGrad" cx="34%" cy="28%" r="62%">
+      <stop offset="0%"   stop-color="#80caff"/>
+      <stop offset="42%"  stop-color="#1a72c2"/>
+      <stop offset="100%" stop-color="#082b5a"/>
+    </radialGradient>
+
+    <!-- C atom: carbon blue-grey sphere -->
+    <radialGradient id="cGrad" cx="34%" cy="28%" r="62%">
+      <stop offset="0%"   stop-color="#8faac0"/>
+      <stop offset="42%"  stop-color="#3a5472"/>
+      <stop offset="100%" stop-color="#1a2232"/>
+    </radialGradient>
+
+    <filter id="as" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+
+  </defs>
+
+  <!--
+    DESIGN CONCEPT: Cross-section of a MOF pore
+    12 atoms (4 Cu, 4 O, 4 C) arranged in a ring at r=145 from center (256,215).
+    The void in the center IS the cavity. Atoms and bonds form the pore wall.
+
+    Positions (angle from top, clockwise, every 30deg):
+      0deg:  Cu (256, 70)       6:  Cu (256, 360)
+      30deg: O  (328.5, 89.4)   7:  O  (183.5, 340.6)
+      60deg: C  (381.6, 142.5)  8:  C  (130.4, 287.5)
+      90deg: Cu (401, 215)      9:  Cu (111, 215)
+     120deg: O  (381.6, 287.5)  10: O  (130.4, 142.5)
+     150deg: C  (328.5, 340.6)  11: C  (183.5, 89.4)
+  -->
+
+  <!-- === DEPTH EFFECT: annular shadow at the inner rim === -->
+  <circle cx="256" cy="215" r="145" fill="url(#poreDepth)"/>
+
+  <!-- === INNER HIGHLIGHT: light bouncing off inside top wall === -->
+  <circle cx="256" cy="215" r="115" fill="url(#caveHighlight)"/>
+
+  <!-- === BONDS (drawn below atoms) === -->
+  <g stroke="#3a608a" stroke-width="2.2" stroke-linecap="round" opacity="0.82">
+    <line x1="256"   y1="70"    x2="328.5" y2="89.4"/>
+    <line x1="328.5" y1="89.4"  x2="381.6" y2="142.5"/>
+    <line x1="381.6" y1="142.5" x2="401"   y2="215"/>
+    <line x1="401"   y1="215"   x2="381.6" y2="287.5"/>
+    <line x1="381.6" y1="287.5" x2="328.5" y2="340.6"/>
+    <line x1="328.5" y1="340.6" x2="256"   y2="360"/>
+    <line x1="256"   y1="360"   x2="183.5" y2="340.6"/>
+    <line x1="183.5" y1="340.6" x2="130.4" y2="287.5"/>
+    <line x1="130.4" y1="287.5" x2="111"   y2="215"/>
+    <line x1="111"   y1="215"   x2="130.4" y2="142.5"/>
+    <line x1="130.4" y1="142.5" x2="183.5" y2="89.4"/>
+    <line x1="183.5" y1="89.4"  x2="256"   y2="70"/>
+  </g>
+
+  <!-- === ATOMS === -->
+  <circle cx="256"   cy="70"    r="10.5" fill="url(#cuGrad)" filter="url(#as)"/>
+  <circle cx="328.5" cy="89.4"  r="7.2"  fill="url(#oGrad)"  filter="url(#as)"/>
+  <circle cx="381.6" cy="142.5" r="6.5"  fill="url(#cGrad)"  filter="url(#as)"/>
+  <circle cx="401"   cy="215"   r="10.5" fill="url(#cuGrad)" filter="url(#as)"/>
+  <circle cx="381.6" cy="287.5" r="7.2"  fill="url(#oGrad)"  filter="url(#as)"/>
+  <circle cx="328.5" cy="340.6" r="6.5"  fill="url(#cGrad)"  filter="url(#as)"/>
+  <circle cx="256"   cy="360"   r="10.5" fill="url(#cuGrad)" filter="url(#as)"/>
+  <circle cx="183.5" cy="340.6" r="7.2"  fill="url(#oGrad)"  filter="url(#as)"/>
+  <circle cx="130.4" cy="287.5" r="6.5"  fill="url(#cGrad)"  filter="url(#as)"/>
+  <circle cx="111"   cy="215"   r="10.5" fill="url(#cuGrad)" filter="url(#as)"/>
+  <circle cx="130.4" cy="142.5" r="7.2"  fill="url(#oGrad)"  filter="url(#as)"/>
+  <circle cx="183.5" cy="89.4"  r="6.5"  fill="url(#cGrad)"  filter="url(#as)"/>
+
+  <!-- === WORDMARK === -->
+  <text
+    x="256" y="454"
+    text-anchor="middle"
+    font-family="'SF Pro Display','Helvetica Neue',Arial,sans-serif"
+    font-size="50"
+    font-weight="300"
+    letter-spacing="9"
+    fill="#2a4060"
+  >CAVITY</text>
+
+  <line x1="184" y1="465" x2="328" y2="465" stroke="#4a7098" stroke-width="0.8" opacity="0.45"/>
+
+  <text
+    x="256" y="485"
+    text-anchor="middle"
+    font-family="'SF Pro Text','Helvetica Neue',Arial,sans-serif"
+    font-size="11.5"
+    font-weight="300"
+    letter-spacing="3.5"
+    fill="#5a7a98"
+    opacity="0.7"
+  >MOF EXPLORER</text>
+
+</svg>

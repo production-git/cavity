@@ -374,6 +374,8 @@ export async function openImport() {
                 else if (ext === '.mol')  parseMOL(ev.target.result);
                 else if (ext === '.cif')  parseCIF(ev.target.result);
                 else                      loadStructureFromJSON(ev.target.result);
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                setStructureName(baseName);
                 afterImport();
             } catch(err) {
                 const st = document.getElementById('import-status');
@@ -388,7 +390,7 @@ export async function openImport() {
 
 export async function loadSaved(name) {
     const json = await loadFromStorage(name); if (!json) return;
-    try { loadStructureFromJSON(json); afterImport(); closeModals(); } catch(e) {}
+    try { loadStructureFromJSON(json); setStructureName(name); afterImport(); closeModals(); } catch(e) {}
 }
 
 export async function deleteSaved(name) {
@@ -398,6 +400,12 @@ export async function deleteSaved(name) {
 
 export function closeModals() {
     document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
+}
+
+const DEFAULT_STRUCTURE_NAME = '';
+
+function setStructureName(name) {
+    app.structureName = name || DEFAULT_STRUCTURE_NAME;
 }
 
 /* Called after any import (file, saved, CIF, XYZ, MOL) */
@@ -503,6 +511,7 @@ export async function resetStructure() {
     if (!confirm('Reset to default HKUST-1?')) return;
     const resp = await fetch('model/HKUST-1-Cu-2BTC-4.json');
     if (resp.ok) loadStructureFromJSON(await resp.text());
+    setStructureName(DEFAULT_STRUCTURE_NAME);
     app.customGroups = [];
     app.angleY    = 35 * Math.PI / 180;
     app.angleX    = 20 * Math.PI / 180;

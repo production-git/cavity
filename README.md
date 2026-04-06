@@ -1,6 +1,6 @@
-# MOF Structure Editor
+# Cavity
 
-A zero-dependency, browser-based tool for interactively visualising and editing Metal-Organic Framework (MOF) crystal structures. HKUST-1 (Cu₂(BTC)₄) is the primary reference system.
+A zero-dependency, browser-based tool for interactively visualising and editing crystal structures — Metal-Organic Frameworks (MOFs), coordination cages, and beyond.
 
 **No build step. No server. Runs entirely in the browser.**
 
@@ -80,7 +80,7 @@ Making structures explain themselves.
 Competing with desktop tools on capability.
 
 - Animation export — rotation GIF / WebM
-- Molecule library with curated presets beyond HKUST-1
+- Molecule library with curated structure presets
 - Doping simulation and guest molecule interactions
 
 ### Phase 4 — Advanced Visualisation

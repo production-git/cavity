@@ -43,6 +43,9 @@ export function getNAME(role) { for (const e of ELEMENTS) { if (e.roles[role]) r
    helper functions below.
    ══════════════════════════════════════════════════════════ */
 export const app = {
+    /* ── Structure metadata ── */
+    structureName: 'HKUST-1 Cu₂(BTC)₄ paddle-wheel SBU',
+
     /* ── Theme ── */
     dark: _dark,
 
