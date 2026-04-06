@@ -2,6 +2,7 @@
 .skill-archive/
 .vscode/
 .claude/
+.scripts/
 .mcp.json
 .opencode.json
 .cursorrules
