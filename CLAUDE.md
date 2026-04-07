@@ -88,12 +88,29 @@ Docs/
 
 Fall back to Grep/Glob/Read only when the graph doesn't cover it.
 
+## Test-Driven Development (MANDATORY)
+
+**Always follow TDD for all code changes:**
+
+1. Write test first (RED) — test must fail before any implementation
+2. Write minimal implementation (GREEN) — just enough to pass the test
+3. Refactor (IMPROVE) — clean up while keeping tests green
+4. Verify coverage ≥ 80%
+
+**Test files live in `app/tests/`:**
+- Unit tests: `tests/unit/` — pure functions (`math3d.js`, `state.js` helpers)
+- Integration tests: `tests/integration/` — canvas rendering, hit testing
+- E2E tests: `tests/e2e/` — full user workflows via Playwright
+
+Use the `/tdd` skill when writing new features or fixing bugs. Use `/e2e-testing` for critical user flow coverage.
+
 ## Skills
 
 Use the `Skill` tool to invoke these when the task matches:
 
 | Skill | When to use |
 |-------|------------|
+| `tdd` | New features, bug fixes, refactoring — enforces write-tests-first workflow |
 | `threejs` | Any work involving Three.js — scene setup, geometry, materials, lighting, cameras, animation, shaders |
 | `ui-ux-pro-max` | Frontend UI/UX design work — layouts, components, visual design, interaction patterns, accessibility |
 | `shadertoy` | GLSL fragment shaders, ray marching, SDFs — Phase 4 DFT isosurfaces and electron density rendering |

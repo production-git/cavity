@@ -3,7 +3,7 @@
 .vscode/
 .claude/
 .scripts/
-.Docs/
+Docs/
 .mcp.json
 .opencode.json
 .cursorrules
