@@ -32,7 +32,7 @@ export const COL = {};
 ELEMENTS.forEach(e => COL[e.sym] = e.col);
 
 export function getElem(sym) { return ELEMENTS.find(e => e.sym === sym); }
-export function getCOL(sym)  { const e = getElem(sym); return e ? e.col : (app.dark ? '#aaa' : '#777'); }
+export function getCOL(sym)  { const e = getElem(sym); return e ? e.col : (app.dark ? '#aaaaaa' : '#777777'); }
 export function getRAD(sym)  { const e = getElem(sym); return e ? e.rad : 5; }
 export function getNAME(role) { for (const e of ELEMENTS) { if (e.roles[role]) return e.roles[role]; } return null; }
 

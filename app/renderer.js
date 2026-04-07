@@ -30,7 +30,11 @@ export function getCanvas() { return canvas; }
 
 /* ── Canvas helpers ── */
 function varColor(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
-function hexRgb(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function hexRgb(h) {
+    // Expand 3-digit shorthand (#rgb → #rrggbb) before parsing
+    if (h.length === 4) h = '#' + h[1]+h[1] + h[2]+h[2] + h[3]+h[3];
+    return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
 function drawRoundedRect(cx, x, y, w, h, r) {
     cx.beginPath(); cx.moveTo(x+r,y); cx.lineTo(x+w-r,y);
     cx.quadraticCurveTo(x+w,y,x+w,y+r); cx.lineTo(x+w,y+h-r);
