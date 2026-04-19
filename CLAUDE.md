@@ -17,7 +17,8 @@ npm run test:e2e          # Playwright smoke tests (requires server on :8080)
 npm run test:all          # Jest + Playwright
 ```
 
-CI runs both jobs on every push/PR via `.github/workflows/ci.yml`.
+Test files live in `app/tests/`: `unit/`, `integration/`, `e2e/`.
+CI runs on every push/PR via `.github/workflows/ci.yml`.
 
 ## Architecture
 
@@ -31,15 +32,11 @@ app/
   ui.js        — DOM events, modal management
   math3d.js    — Pure vector/geometry (no side-effects, no imports)
   styles.css   — CSS variables + component styles
-  spatial.js   — (Phase A2) BVH/octree for O(log N) hit testing
-  app.js       — Legacy monolith (not loaded; reference only)
 ```
 
 **Dependency direction (no cycles):**
 ```
 math3d.js ← state.js ← renderer.js ← ui.js ← index.js
-                  ↑
-              spatial.js  (Phase A2, no state mutation)
 ```
 
 ### Key functions
@@ -71,14 +68,10 @@ cd scripts && python -m unittest test_cif_to_json -v
 Docs/
   application_design.md     — Full architecture reference
   strategy.md / roadmap.md  — Product strategy and phased delivery
-  progress.md               — Changelog (maintain this — see rules below)
-  phase-2/                  — Phase 2 PRD and technical design
+  progress.md               — Changelog
   feature_plans/
     planned-features.md     — Master feature tracking (add here first)
-    cavity-preset-plan.md   — COMPLETED
-    [other feature files]   — One file per complex feature
     user_feedback/raw.md
-  3d-presentation-app/      — Separate future app (not this codebase)
 ```
 
 **New features:** add entry to `feature_plans/planned-features.md` first. Complex features get their own file.
@@ -103,30 +96,12 @@ Docs/
 
 Fall back to Grep/Glob/Read only when the graph doesn't cover it.
 
-## Test-Driven Development (MANDATORY)
-
-**Always follow TDD for all code changes:**
-
-1. Write test first (RED) — test must fail before any implementation
-2. Write minimal implementation (GREEN) — just enough to pass the test
-3. Refactor (IMPROVE) — clean up while keeping tests green
-4. Verify coverage ≥ 80%
-
-**Test files live in `app/tests/`:**
-- Unit tests: `tests/unit/` — pure functions (`math3d.js`, `state.js` helpers)
-- Integration tests: `tests/integration/` — canvas rendering, hit testing
-- E2E tests: `tests/e2e/` — full user workflows via Playwright
-
-Use the `/tdd` skill when writing new features or fixing bugs. Use `/e2e-testing` for critical user flow coverage.
-
 ## Skills
-
-Use the `Skill` tool to invoke these when the task matches:
 
 | Skill | When to use |
 |-------|------------|
-| `tdd` | New features, bug fixes, refactoring — enforces write-tests-first workflow |
-| `threejs` | Any work involving Three.js — scene setup, geometry, materials, lighting, cameras, animation, shaders |
-| `ui-ux-pro-max` | Frontend UI/UX design work — layouts, components, visual design, interaction patterns, accessibility |
-| `shadertoy` | GLSL fragment shaders, ray marching, SDFs — Phase 4 DFT isosurfaces and electron density rendering |
-| `scientific-visualization` | Publication-quality charts with matplotlib/seaborn/plotly — Phase 2 structural analysis and pore characterization |
+| `tdd` | New features, bug fixes, refactoring |
+| `threejs` | Any work involving Three.js — Phase A renderer |
+| `ui-ux-pro-max` | Frontend UI/UX — Phase A3 redesign |
+| `shadertoy` | GLSL shaders, ray marching — Phase 4 DFT rendering |
+| `scientific-visualization` | Charts with matplotlib/plotly — Phase 2 analysis |
