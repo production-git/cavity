@@ -6,6 +6,7 @@ models/
 .vscode/
 .claude/
 .scripts/
+test-results/
 Docs/
 .mcp.json
 .opencode.json
