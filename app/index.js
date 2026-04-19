@@ -10,7 +10,9 @@
  */
 
 import { app, loadStructureFromJSON, saveState } from './state.js';
-import { init as rendererInit, resize, draw } from './renderer.js';
+import { init as rendererInit, resize, draw as canvasDraw } from './renderer.js';
+
+const _useThree = new URLSearchParams(window.location.search).get('renderer') === 'three';
 import {
     init as uiInit,
     setMode, setAddSubMode,
@@ -31,9 +33,19 @@ import { undo, redo } from './state.js';
    RENDERER INIT
    ══════════════════════════════════════════════════════════ */
 const canvas = document.getElementById('mol');
-rendererInit(canvas);
-resize();
-window.addEventListener('resize', () => { resize(); draw(); });
+let draw;
+
+if (_useThree) {
+    const { init: threeInit, draw: threeDraw } = await import('./renderer-three.js');
+    threeInit(canvas);
+    draw = threeDraw;
+    window.addEventListener('resize', () => draw());
+} else {
+    rendererInit(canvas);
+    resize();
+    draw = canvasDraw;
+    window.addEventListener('resize', () => { resize(); draw(); });
+}
 
 /* ══════════════════════════════════════════════════════════
    UI INIT (binds all canvas + DOM events)
