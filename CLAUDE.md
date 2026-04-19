@@ -8,6 +8,17 @@ python3 app/serve.py
 # open http://localhost:8080/
 ```
 
+## Tests
+
+```bash
+npm test                  # unit + integration (Jest)
+npm run test:coverage     # same + coverage report (target ≥ 80%)
+npm run test:e2e          # Playwright smoke tests (requires server on :8080)
+npm run test:all          # Jest + Playwright
+```
+
+CI runs both jobs on every push/PR via `.github/workflows/ci.yml`.
+
 ## Architecture
 
 ```
@@ -16,15 +27,19 @@ app/
   index.js     — Entry point, animation loop
   state.js     — State, undo/redo, CIF/JSON I/O, cavity detection
   renderer.js  — Canvas 2D drawing, hit testing (no state mutation)
+                 ⚠ Phase A: will be rewritten with Three.js WebGL
   ui.js        — DOM events, modal management
   math3d.js    — Pure vector/geometry (no side-effects, no imports)
   styles.css   — CSS variables + component styles
+  spatial.js   — (Phase A2) BVH/octree for O(log N) hit testing
   app.js       — Legacy monolith (not loaded; reference only)
 ```
 
 **Dependency direction (no cycles):**
 ```
 math3d.js ← state.js ← renderer.js ← ui.js ← index.js
+                  ↑
+              spatial.js  (Phase A2, no state mutation)
 ```
 
 ### Key functions

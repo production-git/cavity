@@ -45,7 +45,10 @@ function makeCtx() {
     save:                  nop,
     restore:               nop,
     scale:                 nop,
+    translate:             nop,
+    rotate:                nop,
     setTransform:          nop,
+    transform:             nop,
     quadraticCurveTo:      nop,
     bezierCurveTo:         nop,
     ellipse:               nop,
@@ -291,10 +294,10 @@ describe('hitAxisTest', () => {
 
   test('hits a rotate axis near its handle projection', () => {
     app.currentAxes = [{
-      type:      'rotate',
-      origin:    [0, 0, 0],
-      dir:       [1, 0, 0],
-      handlePos: [0, 0, 0],  // projects exactly to canvas centre
+      type:       'rotate',
+      axisOrigin: [0, 0, 0],
+      dir:        [1, 0, 0],
+      handlePos:  [0, 0, 0],
     }];
     draw();
     const result = hitAxisTest(W / 2, H / 2);
