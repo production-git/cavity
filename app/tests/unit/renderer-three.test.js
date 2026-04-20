@@ -16,8 +16,12 @@ jest.unstable_mockModule('three', () => ({
         position: { set: jest.fn() },
     })),
     SphereGeometry: jest.fn().mockImplementation(() => ({})),
+    CylinderGeometry: jest.fn().mockImplementation(() => ({})),
     MeshPhongMaterial: jest.fn().mockImplementation(() => ({})),
-    Mesh: jest.fn().mockImplementation(() => ({ position: { set: jest.fn() } })),
+    Mesh: jest.fn().mockImplementation(() => ({
+        position: { set: jest.fn(), copy: jest.fn() },
+        setRotationFromQuaternion: jest.fn(),
+    })),
     Color: jest.fn().mockImplementation(() => ({})),
     Group: jest.fn().mockImplementation(() => ({
         children: [],
@@ -25,6 +29,21 @@ jest.unstable_mockModule('three', () => ({
         remove: jest.fn(),
         rotation: { x: 0, y: 0 },
     })),
+    Vector3: jest.fn().mockImplementation(() => {
+        const v = {
+            addVectors: jest.fn(() => v),
+            multiplyScalar: jest.fn(() => v),
+            subVectors: jest.fn(() => v),
+            normalize: jest.fn(() => v),
+            distanceTo: jest.fn(() => 1.5),
+            copy: jest.fn(),
+        };
+        return v;
+    }),
+    Quaternion: jest.fn().mockImplementation(() => {
+        const q = { setFromUnitVectors: jest.fn(() => q) };
+        return q;
+    }),
 }));
 
 jest.unstable_mockModule('../../state.js', () => ({
@@ -33,6 +52,7 @@ jest.unstable_mockModule('../../state.js', () => ({
             { x: 0, y: 0, z: 0, t: 'Cu', id: 0 },
             { x: 1, y: 1, z: 1, t: 'O', id: 1 },
         ],
+        bonds: [],
         angleX: 0,
         angleY: 0.5,
     },
@@ -41,9 +61,12 @@ jest.unstable_mockModule('../../state.js', () => ({
 }));
 
 let rendererThree;
+let stateApp;
 
 beforeAll(async () => {
     rendererThree = await import('../../renderer-three.js');
+    const state = await import('../../state.js');
+    stateApp = state.app;
 });
 
 describe('renderer-three module', () => {
@@ -69,5 +92,21 @@ describe('renderer-three module', () => {
         const { Mesh } = await import('three');
         // 2 atoms × 1 draw call so far = 2 Mesh constructions
         expect(Mesh).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('renderer-three bond rendering', () => {
+    test('draw does not throw with zero bonds', () => {
+        stateApp.bonds = [];
+        expect(() => rendererThree.draw()).not.toThrow();
+    });
+
+    test('bond mesh count matches bonds length', async () => {
+        const { CylinderGeometry } = await import('three');
+        CylinderGeometry.mockClear();
+        stateApp.bonds = [{ a: 0, b: 1, dashed: false }];
+        rendererThree.draw();
+        expect(CylinderGeometry).toHaveBeenCalledTimes(stateApp.bonds.length);
+        stateApp.bonds = [];
     });
 });
