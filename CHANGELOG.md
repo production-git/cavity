@@ -5,6 +5,13 @@ Internal refactoring, test additions, and dependency updates are omitted.
 
 ---
 
+## 2026-04-21
+
+### New
+- Polyhedra rendering in WebGL renderer (`?renderer=three`): coloured planes and rings now appear as translucent face meshes with solid edges, matching the default Canvas 2D view.
+
+---
+
 ## 2026-04-20
 
 ### New

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { app, getCOL, getRAD } from './state.js';
+import { app, getCOL, getRAD, getAllDrawGroups } from './state.js';
 
-let scene, camera, renderer, atomGroup, bondGroup;
+let scene, camera, renderer, atomGroup, bondGroup, polyGroup;
 
 export function init(canvas) {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -27,6 +27,9 @@ export function init(canvas) {
 
     bondGroup = new THREE.Group();
     scene.add(bondGroup);
+
+    polyGroup = new THREE.Group();
+    scene.add(polyGroup);
 }
 
 export function draw() {
@@ -34,6 +37,7 @@ export function draw() {
 
     atomGroup.children.slice().forEach(child => atomGroup.remove(child));
     bondGroup.children.slice().forEach(child => bondGroup.remove(child));
+    polyGroup.children.slice().forEach(child => polyGroup.remove(child));
 
     for (const atom of app.atoms) {
         const radius = getRAD(atom.t) * 0.15;
@@ -45,6 +49,7 @@ export function draw() {
     }
 
     const atomById = new Map(app.atoms.map(a => [a.id, a]));
+
     for (const bond of app.bonds) {
         const a1 = atomById.get(bond.a);
         const a2 = atomById.get(bond.b);
@@ -74,10 +79,54 @@ export function draw() {
         bondGroup.add(mesh);
     }
 
+    for (const group of getAllDrawGroups()) {
+        if (group.isSphere) continue;
+
+        const facePositions = [];
+        for (const face of group.faces) {
+            if (face.length < 3) continue;
+            const v0 = atomById.get(face[0]);
+            if (!v0) continue;
+            for (let i = 1; i < face.length - 1; i++) {
+                const vi = atomById.get(face[i]);
+                const vi1 = atomById.get(face[i + 1]);
+                if (!vi || !vi1) continue;
+                facePositions.push(v0.x, v0.y, v0.z, vi.x, vi.y, vi.z, vi1.x, vi1.y, vi1.z);
+            }
+        }
+        if (facePositions.length >= 9) {
+            const geoFace = new THREE.BufferGeometry();
+            geoFace.setAttribute('position', new THREE.BufferAttribute(new Float32Array(facePositions), 3));
+            const matFace = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(group.color),
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+            });
+            polyGroup.add(new THREE.Mesh(geoFace, matFace));
+        }
+
+        const edgePoints = [];
+        for (const edge of group.edges) {
+            const a = atomById.get(edge[0]);
+            const b = atomById.get(edge[1]);
+            if (!a || !b) continue;
+            edgePoints.push(new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(b.x, b.y, b.z));
+        }
+        if (edgePoints.length >= 2) {
+            const geoEdge = new THREE.BufferGeometry().setFromPoints(edgePoints);
+            const matEdge = new THREE.LineBasicMaterial({ color: new THREE.Color(group.color) });
+            polyGroup.add(new THREE.LineSegments(geoEdge, matEdge));
+        }
+    }
+
     atomGroup.rotation.y = app.angleY || 0;
     atomGroup.rotation.x = app.angleX || 0;
     bondGroup.rotation.y = app.angleY || 0;
     bondGroup.rotation.x = app.angleX || 0;
+    polyGroup.rotation.y = app.angleY || 0;
+    polyGroup.rotation.x = app.angleX || 0;
 
     renderer.render(scene, camera);
 }

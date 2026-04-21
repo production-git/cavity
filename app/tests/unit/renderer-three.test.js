@@ -17,12 +17,21 @@ jest.unstable_mockModule('three', () => ({
     })),
     SphereGeometry: jest.fn().mockImplementation(() => ({})),
     CylinderGeometry: jest.fn().mockImplementation(() => ({})),
+    BufferGeometry: jest.fn().mockImplementation(() => ({
+        setAttribute: jest.fn(),
+        setFromPoints: jest.fn(function() { return this; }),
+    })),
+    BufferAttribute: jest.fn().mockImplementation(() => ({})),
     MeshPhongMaterial: jest.fn().mockImplementation(() => ({})),
+    MeshBasicMaterial: jest.fn().mockImplementation(() => ({})),
+    LineBasicMaterial: jest.fn().mockImplementation(() => ({})),
     Mesh: jest.fn().mockImplementation(() => ({
         position: { set: jest.fn(), copy: jest.fn() },
         setRotationFromQuaternion: jest.fn(),
     })),
+    LineSegments: jest.fn().mockImplementation(() => ({})),
     Color: jest.fn().mockImplementation(() => ({})),
+    DoubleSide: 2,
     Group: jest.fn().mockImplementation(() => ({
         children: [],
         add: jest.fn(),
@@ -58,15 +67,17 @@ jest.unstable_mockModule('../../state.js', () => ({
     },
     getCOL: jest.fn(() => '#4A90D9'),
     getRAD: jest.fn(() => 8),
+    getAllDrawGroups: jest.fn(() => []),
 }));
 
 let rendererThree;
 let stateApp;
+let stateModule;
 
 beforeAll(async () => {
     rendererThree = await import('../../renderer-three.js');
-    const state = await import('../../state.js');
-    stateApp = state.app;
+    stateModule = await import('../../state.js');
+    stateApp = stateModule.app;
 });
 
 describe('renderer-three module', () => {
@@ -108,5 +119,41 @@ describe('renderer-three bond rendering', () => {
         rendererThree.draw();
         expect(CylinderGeometry).toHaveBeenCalledTimes(stateApp.bonds.length);
         stateApp.bonds = [];
+    });
+});
+
+describe('renderer-three polyhedra rendering', () => {
+    test('draw does not throw with zero polyhedra', () => {
+        stateModule.getAllDrawGroups.mockReturnValueOnce([]);
+        expect(() => rendererThree.draw()).not.toThrow();
+    });
+
+    test('BufferGeometry created twice per non-sphere group (faces + edges)', async () => {
+        const { BufferGeometry } = await import('three');
+        BufferGeometry.mockClear();
+        const origAtoms = stateApp.atoms;
+        stateApp.atoms = [
+            { x: 0, y: 0, z: 0, t: 'Cu', id: 0 },
+            { x: 1, y: 0, z: 0, t: 'O',  id: 1 },
+            { x: 0, y: 1, z: 0, t: 'O',  id: 2 },
+        ];
+        stateModule.getAllDrawGroups.mockReturnValueOnce([
+            { faces: [[0, 1, 2]], edges: [[0, 1], [1, 2], [2, 0]], ids: [0, 1, 2], color: '#ff0000' },
+            { faces: [[0, 1, 2]], edges: [[0, 1]], ids: [0, 1, 2], color: '#0000ff' },
+        ]);
+        rendererThree.draw();
+        // 2 groups × (1 face BufferGeometry + 1 edge BufferGeometry) = 4
+        expect(BufferGeometry).toHaveBeenCalledTimes(4);
+        stateApp.atoms = origAtoms;
+    });
+
+    test('sphere (cavity) groups are skipped — no MeshBasicMaterial created', async () => {
+        const { MeshBasicMaterial } = await import('three');
+        MeshBasicMaterial.mockClear();
+        stateModule.getAllDrawGroups.mockReturnValueOnce([
+            { isSphere: true, cx: 0, cy: 0, cz: 0, r: 1, color: '#ffff00' },
+        ]);
+        rendererThree.draw();
+        expect(MeshBasicMaterial).not.toHaveBeenCalled();
     });
 });
