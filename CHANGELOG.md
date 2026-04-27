@@ -5,6 +5,13 @@ Internal refactoring, test additions, and dependency updates are omitted.
 
 ---
 
+## 2026-04-28
+
+### New
+- **Cavity spheres in WebGL renderer** (`?renderer=three`): cavity spheres now appear as translucent 3D spheres at their correct positions, completing geometry parity with the default Canvas 2D renderer.
+
+---
+
 ## 2026-04-21
 
 ### New

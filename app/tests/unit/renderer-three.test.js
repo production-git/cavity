@@ -147,13 +147,51 @@ describe('renderer-three polyhedra rendering', () => {
         stateApp.atoms = origAtoms;
     });
 
-    test('sphere (cavity) groups are skipped — no MeshBasicMaterial created', async () => {
-        const { MeshBasicMaterial } = await import('three');
-        MeshBasicMaterial.mockClear();
+    test('sphere (cavity) groups are skipped by polyhedra path — no face BufferGeometry', async () => {
+        const { BufferGeometry } = await import('three');
+        BufferGeometry.mockClear();
         stateModule.getAllDrawGroups.mockReturnValueOnce([
             { isSphere: true, cx: 0, cy: 0, cz: 0, r: 1, color: '#ffff00' },
         ]);
         rendererThree.draw();
-        expect(MeshBasicMaterial).not.toHaveBeenCalled();
+        expect(BufferGeometry).not.toHaveBeenCalled();
+    });
+});
+
+describe('renderer-three cavity sphere rendering', () => {
+    test('draw does not throw with isSphere groups', () => {
+        stateModule.getAllDrawGroups.mockReturnValueOnce([
+            { isSphere: true, cx: 0, cy: 0, cz: 0, r: 1.5, color: '#ffff00' },
+        ]);
+        expect(() => rendererThree.draw()).not.toThrow();
+    });
+
+    test('SphereGeometry created once per cavity group (no atoms)', async () => {
+        const { SphereGeometry } = await import('three');
+        SphereGeometry.mockClear();
+        const origAtoms = stateApp.atoms;
+        stateApp.atoms = [];
+        stateModule.getAllDrawGroups.mockReturnValueOnce([
+            { isSphere: true, cx: 0, cy: 0, cz: 0, r: 1.5, color: '#ffff00' },
+            { isSphere: true, cx: 3, cy: 0, cz: 0, r: 2.0, color: '#00ffff' },
+        ]);
+        rendererThree.draw();
+        expect(SphereGeometry).toHaveBeenCalledTimes(2);
+        stateApp.atoms = origAtoms;
+    });
+
+    test('cavity spheres use transparent MeshBasicMaterial', async () => {
+        const { MeshBasicMaterial } = await import('three');
+        MeshBasicMaterial.mockClear();
+        const origAtoms = stateApp.atoms;
+        stateApp.atoms = [];
+        stateModule.getAllDrawGroups.mockReturnValueOnce([
+            { isSphere: true, cx: 0, cy: 0, cz: 0, r: 1.5, color: '#ffff00' },
+        ]);
+        rendererThree.draw();
+        expect(MeshBasicMaterial).toHaveBeenCalledWith(
+            expect.objectContaining({ transparent: true })
+        );
+        stateApp.atoms = origAtoms;
     });
 });

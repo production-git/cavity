@@ -80,7 +80,19 @@ export function draw() {
     }
 
     for (const group of getAllDrawGroups()) {
-        if (group.isSphere) continue;
+        if (group.isSphere) {
+            const geo = new THREE.SphereGeometry(group.r, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(group.color),
+                transparent: true,
+                opacity: 0.3,
+                depthWrite: false,
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(group.cx, group.cy, group.cz);
+            polyGroup.add(mesh);
+            continue;
+        }
 
         const facePositions = [];
         for (const face of group.faces) {
